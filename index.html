@@ -141,6 +141,15 @@ label.pace{display:inline-flex;align-items:baseline;gap:2px;cursor:text}
 .delta.down{color:color-mix(in srgb,#1aa36a 85%,var(--fg))}
 .locked .ctrl{display:none}
 .locked .pin{pointer-events:none;background:transparent;padding-left:0;padding-right:0;text-align:left;width:3.3em}
+/* udostępnianie */
+.toprow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.share{font:inherit;font-size:.85rem;font-weight:700;color:inherit;display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;border:0;background:rgba(255,255,255,.12);cursor:pointer;transition:background .15s}
+.share:hover{background:rgba(255,255,255,.2)}
+.share svg{width:16px;height:16px}
+.share.ok{background:color-mix(in srgb,#1aa36a 70%,transparent)}
+.sharebox{display:flex;flex-direction:column;gap:6px;font-size:.85rem}
+.sharebox p{margin:0;opacity:.8}
+.sharebox input{font:inherit;font-size:16px;width:100%;padding:8px 10px;border-radius:10px;border:0;background:rgba(255,255,255,.95);color:#0e1726}
 /* zakładki */
 .tri-ic{display:inline-flex;gap:3px}
 .tabbar button .tri-ic svg{width:17px;height:17px}
@@ -192,7 +201,7 @@ label.pace{display:inline-flex;align-items:baseline;gap:2px;cursor:text}
 
 <div class="app" id="tabTri" role="tabpanel" aria-labelledby="tab-tri">
   <aside class="hero" aria-live="polite">
-    <div class="brand"><i><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg></i>Przewidywany wynik</div>
+    <div class="toprow"><div class="brand"><i><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg></i>Przewidywany wynik</div><button type="button" class="share" data-share><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><span>Udostępnij</span></button></div>
     <div>
       <div class="cap">Czas na mecie</div>
       <div class="total num" id="total">–</div>
@@ -205,6 +214,7 @@ label.pace{display:inline-flex;align-items:baseline;gap:2px;cursor:text}
       <div class="cap" style="margin-bottom:6px">Etap · zegar wyścigu · czas odcinka</div>
       <div class="splits" id="splits"></div>
     </div>
+    <div class="sharebox" hidden><p>Skopiuj ten link i wyślij go dalej:</p><input type="text" readonly aria-label="Link z ustawieniami"></div>
   </aside>
 
   <main class="main">
@@ -315,7 +325,7 @@ label.pace{display:inline-flex;align-items:baseline;gap:2px;cursor:text}
 
 <div class="app" id="tabRun" role="tabpanel" aria-labelledby="tab-run" hidden>
   <aside class="hero runhero" aria-live="polite">
-    <div class="brand"><i><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg></i>Przewidywany wynik</div>
+    <div class="toprow"><div class="brand"><i><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg></i>Przewidywany wynik</div><button type="button" class="share" data-share><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><span>Udostępnij</span></button></div>
     <div>
       <div class="cap">Czas na mecie</div>
       <div class="total num" id="rTotal">–</div>
@@ -329,6 +339,7 @@ label.pace{display:inline-flex;align-items:baseline;gap:2px;cursor:text}
       <div class="cap" style="margin-bottom:6px">Punkty kontrolne · zegar wyścigu</div>
       <div class="splits" id="rChecks"></div>
     </div>
+    <div class="sharebox" hidden><p>Skopiuj ten link i wyślij go dalej:</p><input type="text" readonly aria-label="Link z ustawieniami"></div>
   </aside>
 
   <main class="main">
@@ -591,6 +602,60 @@ function rRender(fromKm,fromGoal){
   try{localStorage.setItem("run-calc",JSON.stringify(rs));}catch(e){}
 }
 rRender();
+
+/* ---------- link z ustawieniami ---------- */
+const tx=v=>String(Math.round(v*1000)/1000);
+function shareURL(){
+  const q=new URLSearchParams();
+  if(!$("tabRun").hidden){
+    q.set("tab","bieg");q.set("d",rs.dist);if(rs.dist==="own")q.set("km",tx(rs.km));
+    if(rs.mode==="goal")q.set("cel",hms(rs.goal));else q.set("tempo",ms(rs.pace));
+    if(rs.split)q.set("split",String(rs.split));
+  }else{
+    q.set("tab","tri");q.set("d",state.dist);
+    if(state.dist==="own")q.set("odc",[tx(state.swim),tx(state.bike),tx(state.run)].join("-"));
+    q.set("pl",ms(state.pSwim));q.set("rw",tx(state.pBike));q.set("bg",ms(state.pRun));
+    q.set("t1",ms(state.t1));q.set("t2",ms(state.t2));
+    if(state.mode==="goal")q.set("cel",hms(state.goal));
+  }
+  return location.origin+location.pathname+"?"+q.toString().replace(/%3A/gi,":");
+}
+function readURL(){
+  let q;try{q=new URLSearchParams(location.search);}catch(e){return;}
+  if(!q.has("tab"))return;
+  const T=k=>{const v=parseTime(q.get(k)||"");return isNaN(v)?null:v;};
+  const HMS=k=>{const p=(q.get(k)||"").split(":").map(Number);if(!p.length||p.some(isNaN))return null;return p.reduce((a,b)=>a*60+b,0);};
+  const N=k=>{const v=parseFloat(q.get(k));return isNaN(v)?null:v;};
+  if(q.get("tab")==="bieg"){
+    const d=RPRE.find(p=>p.id===q.get("d"));
+    if(d){rs.dist=d.id;if(d.km)rs.km=d.km;else if(N("km"))rs.km=N("km");}
+    if(q.has("cel")&&HMS("cel")){rs.mode="goal";rs.goal=HMS("cel");rs.pace=rs.goal/rs.km;}
+    else if(T("tempo")){rs.mode="pace";rs.pace=T("tempo");}
+    if(N("split")!==null)rs.split=Math.max(-60,Math.min(60,N("split")));
+    showTab("bieg");
+  }else{
+    const d=PRESETS.find(p=>p.id===q.get("d"));
+    if(d){state.dist=d.id;if(d.swim){state.swim=d.swim;state.bike=d.bike;state.run=d.run;}
+      else{const o=(q.get("odc")||"").split("-").map(Number);if(o.length===3&&o.every(v=>!isNaN(v))){[state.swim,state.bike,state.run]=o;}}}
+    if(T("pl"))state.pSwim=T("pl");if(N("rw"))state.pBike=N("rw");if(T("bg"))state.pRun=T("bg");
+    if(T("t1")!==null)state.t1=T("t1");if(T("t2")!==null)state.t2=T("t2");
+    if(q.has("cel")&&HMS("cel")){state.mode="goal";state.goal=HMS("cel");}else state.mode="pace";
+    showTab("triathlon");
+  }
+  try{history.replaceState(null,"",location.pathname);}catch(e){}
+}
+readURL();render();rRender();
+
+document.querySelectorAll("[data-share]").forEach(b=>b.onclick=async()=>{
+  const url=shareURL(),box=b.closest(".hero").querySelector(".sharebox"),label=b.querySelector("span");
+  const done=t=>{b.classList.add("ok");label.textContent=t;setTimeout(()=>{b.classList.remove("ok");label.textContent="Udostępnij";},2000);};
+  const fallback=()=>{box.hidden=false;const i=box.querySelector("input");i.value=url;i.focus();i.select();};
+  if(navigator.share&&matchMedia("(pointer:coarse)").matches){
+    try{await navigator.share({title:"Kalkulator triathlonowy",text:"Zobacz moje wyliczenia:",url});return;}
+    catch(e){if(e&&e.name==="AbortError")return;}
+  }
+  try{await navigator.clipboard.writeText(url);done("Skopiowano");box.hidden=true;}catch(e){fallback();}
+});
 </script>
 
 </body>
