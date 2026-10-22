@@ -190,6 +190,35 @@ label.pace{display:inline-flex;align-items:baseline;gap:2px;cursor:text}
 @media (min-width:861px){.rbar{display:none!important}}
 @media (max-width:860px){body{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}}
 @media (prefers-reduced-motion:reduce){.rbar{transition:none}}
+/* strefy zmian w jednej karcie */
+.tcard{gap:10px}
+.trow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:10px;border-top:1px solid var(--line)}
+.tl{display:flex;flex-direction:column;line-height:1.25;min-width:0}
+.tl b{font-family:var(--display);font-size:1.05rem;font-weight:600}
+.tl small{color:var(--muted);font-size:.82rem}
+.tset{display:flex;align-items:center;gap:8px;flex:none}
+.tset .pin{font-size:1.2rem;width:3.6em;color:var(--fg)}
+/* objaśnienia pod „Jak to liczę?” */
+.info summary{cursor:pointer;color:var(--muted);font-size:.88rem;font-weight:600;list-style:none;display:inline-flex;align-items:center;gap:6px}
+.info summary::-webkit-details-marker{display:none}
+.info summary::before{content:"i";display:grid;place-items:center;width:18px;height:18px;border-radius:50%;border:1.5px solid currentColor;font-size:.7rem;font-weight:800;font-family:var(--display)}
+.info p{margin:8px 0 0;color:var(--muted);font-size:.88rem}
+/* zwarty układ na telefonie */
+@media (max-width:860px){
+  body{padding-top:16px}
+  .tabs{margin-bottom:14px}
+  .hero{padding:20px;gap:16px;border-radius:24px}
+  .total{font-size:clamp(2.6rem,13vw,3.2rem)}
+  .dname{margin-top:8px}
+  .splits .r{padding:6px 0}
+  .main{gap:16px}
+  .sub{display:none}
+  h1{font-size:1.5rem}
+  .card{padding:16px;gap:12px}
+  .ico{width:40px;height:40px;border-radius:12px}
+  .ico svg{width:21px;height:21px}
+  .big{font-size:1.5rem}
+}
 /* zakładki */
 .tri-ic{display:inline-flex;gap:3px}
 .tabbar button .tri-ic svg{width:17px;height:17px}
@@ -241,7 +270,7 @@ label.pace{display:inline-flex;align-items:baseline;gap:2px;cursor:text}
 
 <div class="app" id="tabTri" role="tabpanel" aria-labelledby="tab-tri">
   <aside class="hero" aria-live="polite">
-    <div class="toprow"><div class="brand"><i><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg></i>Przewidywany wynik</div><button type="button" class="share" data-share><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><span>Udostępnij</span></button></div>
+    <div class="toprow"><div class="brand"><i><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg></i>Twój wynik</div><button type="button" class="share" data-share><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><span>Udostępnij</span></button></div>
     <div>
       <div class="cap">Czas na mecie</div>
       <div class="total num" id="total">–</div>
@@ -283,7 +312,7 @@ label.pace{display:inline-flex;align-items:baseline;gap:2px;cursor:text}
           <span class="colon">:</span>
           <label for="tgS">sek<input id="tgS" type="text" inputmode="numeric" autocomplete="off"></label>
         </div>
-        <p class="alt" style="margin:0">Wpisz docelowy czas na mecie. Kalkulator rozłoży go na trzy dyscypliny w tych samych proporcjach co Twoje tempa z trybu „Znam tempa”. Strefy zmian T1 i T2 zostają bez zmian.</p>
+        <details class="info"><summary>Jak to liczę?</summary><p>Od celu odejmuję czas stref zmian T1 i T2. Resztę dzielę między pływanie, rower i bieg w tych samych proporcjach co Twoje tempa z trybu „Znam tempa”. Jeśli jesteś słabszy w wodzie, kalkulator to uwzględni.</p></details>
         <p class="warn" id="tGoalWarn" hidden></p>
       </article>
 
@@ -331,41 +360,36 @@ label.pace{display:inline-flex;align-items:baseline;gap:2px;cursor:text}
         </div>
       </article>
 
-      <div class="trans">
-        <article class="card" style="--c:var(--trans)">
-          <div class="head">
-            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-4-4M20 16H7l4 4"/></svg></div>
-            <div class="ttl"><h2>T1</h2><label>pływanie → rower</label></div>
-            <input class="big pin num" id="tT1" type="text" inputmode="decimal" autocomplete="off" aria-label="Czas T1, minuty:sekundy">
+      <article class="card tcard" style="--c:var(--trans)">
+        <div class="head">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-4-4M20 16H7l4 4"/></svg></div>
+          <div class="ttl"><h2>Strefy zmian</h2></div>
+        </div>
+          <div class="trow">
+            <div class="tl"><b>T1</b><small>pływanie → rower</small></div>
+            <div class="tset">
+              <button class="step" data-t="t1" data-d="-1" aria-label="T1 krócej">−</button>
+              <input class="pin num" id="tT1" type="text" inputmode="decimal" autocomplete="off" aria-label="Czas T1, minuty:sekundy">
+              <button class="step" data-t="t1" data-d="1" aria-label="T1 dłużej">+</button>
+            </div>
           </div>
-          <div class="ctrl">
-            <button class="step" data-t="t1" data-d="-1" aria-label="Krócej">−</button>
-            <input type="range" id="pT1" min="0" max="600" step="5" aria-label="Czas T1">
-            <button class="step" data-t="t1" data-d="1" aria-label="Dłużej">+</button>
+          <div class="trow">
+            <div class="tl"><b>T2</b><small>rower → bieg</small></div>
+            <div class="tset">
+              <button class="step" data-t="t2" data-d="-1" aria-label="T2 krócej">−</button>
+              <input class="pin num" id="tT2" type="text" inputmode="decimal" autocomplete="off" aria-label="Czas T2, minuty:sekundy">
+              <button class="step" data-t="t2" data-d="1" aria-label="T2 dłużej">+</button>
+            </div>
           </div>
-        </article>
-        <article class="card" style="--c:var(--trans)">
-          <div class="head">
-            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-4-4M20 16H7l4 4"/></svg></div>
-            <div class="ttl"><h2>T2</h2><label>rower → bieg</label></div>
-            <input class="big pin num" id="tT2" type="text" inputmode="decimal" autocomplete="off" aria-label="Czas T2, minuty:sekundy">
-          </div>
-          <div class="ctrl">
-            <button class="step" data-t="t2" data-d="-1" aria-label="Krócej">−</button>
-            <input type="range" id="pT2" min="0" max="600" step="5" aria-label="Czas T2">
-            <button class="step" data-t="t2" data-d="1" aria-label="Dłużej">+</button>
-          </div>
-        </article>
-      </div>
+      </article>
     </section>
 
-    <p class="note">Na start ustawione są przykładowe tempa średniego amatora. Tempo możesz wpisać z klawiatury albo ustawić suwakiem. Długości odcinków wpiszesz po wybraniu „Własny dystans”.</p>
   </main>
 </div>
 
 <div class="app" id="tabRun" role="tabpanel" aria-labelledby="tab-run" hidden>
   <aside class="hero runhero" aria-live="polite">
-    <div class="toprow"><div class="brand"><i><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg></i>Przewidywany wynik</div><button type="button" class="share" data-share><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><span>Udostępnij</span></button></div>
+    <div class="toprow"><div class="brand"><i><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg></i>Twój wynik</div><button type="button" class="share" data-share><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><span>Udostępnij</span></button></div>
     <div>
       <div class="cap">Czas na mecie</div>
       <div class="total num" id="rTotal">–</div>
@@ -424,7 +448,7 @@ label.pace{display:inline-flex;align-items:baseline;gap:2px;cursor:text}
             <span class="colon">:</span>
             <label for="gS">sek<input id="gS" type="number" min="0" max="59" inputmode="numeric"></label>
           </div>
-          <div class="alt">Wpisz docelowy czas, a obok pojawi się tempo, które musisz utrzymać.</div>
+          <div class="alt">Wpisz cel, a obok pojawi się potrzebne tempo.</div>
         </div>
       </article>
 
@@ -518,7 +542,7 @@ $("tmGoal").onclick=()=>{if(state.mode!=="goal"){state.mode="goal";state.goal=Ma
   el.addEventListener("blur",()=>{el.classList.remove("bad");render();});
   el.addEventListener("keydown",e=>{if(e.key==="Enter")el.blur();});});
 const tSign=(d,fmt)=>{const r=Math.round(d);if(!r)return "";return (r<0?"−":"+")+fmt(Math.abs(r));};
-[["pSwim","pSwim"],["pBike","pBike"],["pRun","pRun"],["pT1","t1"],["pT2","t2"]].forEach(([id,k])=>{
+[["pSwim","pSwim"],["pBike","pBike"],["pRun","pRun"]].forEach(([id,k])=>{
   $(id).addEventListener("input",e=>{state[k]=parseFloat(e.target.value);render();});});
 const STEP={swim:["pSwim",1],bike:["pBike",.1],run:["pRun",5],t1:["t1",5],t2:["t2",5]};
 document.querySelectorAll(".step").forEach(b=>b.onclick=()=>{const[k,s]=STEP[b.dataset.t];
@@ -530,7 +554,7 @@ function render(fromDist){
   distEl.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.id===state.dist));
   const own=state.dist==="own";
   [["dSwim",state.swim],["dBike",state.bike],["dRun",state.run]].forEach(([id,v])=>{const el=$(id);el.readOnly=!own;el.tabIndex=own?0:-1;put(id,dfmt(v));el.style.width=own?"":(dfmt(v).length+.4)+"ch";});
-  setRange("pSwim",state.pSwim);setRange("pBike",state.pBike);setRange("pRun",state.pRun);setRange("pT1",state.t1);setRange("pT2",state.t2);
+  setRange("pSwim",state.pSwim);setRange("pBike",state.pBike);setRange("pRun",state.pRun);
 
   // tempa efektywne: w trybie celu przeskalowane, w zwykłym te same
   const goalMode=state.mode==="goal";
