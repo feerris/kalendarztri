@@ -219,6 +219,10 @@ label.pace{display:inline-flex;align-items:baseline;gap:2px;cursor:text}
   .ico svg{width:21px;height:21px}
   .big{font-size:1.5rem}
 }
+/* poziom */
+.mode.lv3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.mode.lv3 button{font-size:.9rem;padding:10px 4px;line-height:1.2}
+.lvhint{margin:8px 2px 0;font-size:.82rem;color:var(--muted)}
 /* zakładki */
 .tri-ic{display:inline-flex;gap:3px}
 .tabbar button .tri-ic svg{width:17px;height:17px}
@@ -295,6 +299,16 @@ label.pace{display:inline-flex;align-items:baseline;gap:2px;cursor:text}
     <section>
       <div class="sect">Dystans</div>
       <div class="dist" id="dist"></div>
+    </section>
+
+    <section>
+      <div class="sect">Twój poziom</div>
+      <div class="mode lv3" id="lvTri" role="group" aria-label="Poziom">
+        <button type="button" data-lv="beg">Począt&shy;kujący</button>
+        <button type="button" data-lv="mid">Średni</button>
+        <button type="button" data-lv="adv">Zaawan&shy;sowany</button>
+      </div>
+      <p class="lvhint" id="lvTriHint"></p>
     </section>
 
     <section style="display:flex;flex-direction:column;gap:14px">
@@ -417,6 +431,16 @@ label.pace{display:inline-flex;align-items:baseline;gap:2px;cursor:text}
       <div class="dist" id="rDist"></div>
     </section>
 
+    <section>
+      <div class="sect">Twój poziom</div>
+      <div class="mode lv3" id="lvRun" role="group" aria-label="Poziom">
+        <button type="button" data-lv="beg">Począt&shy;kujący</button>
+        <button type="button" data-lv="mid">Średni</button>
+        <button type="button" data-lv="adv">Zaawan&shy;sowany</button>
+      </div>
+      <p class="lvhint" id="lvRunHint"></p>
+    </section>
+
     <section style="display:flex;flex-direction:column;gap:14px">
       <div class="sect" style="margin:0">Co chcesz policzyć?</div>
       <div class="mode">
@@ -489,8 +513,8 @@ const PRESETS=[
   {id:"own",name:"Własny dystans"}
 ];
 const $=id=>document.getElementById(id);
-const state={dist:"ol",swim:1500,bike:40,run:10,pSwim:125,pBike:28,pRun:330,t1:150,t2:90,mode:"pace",goal:0};
-try{const s=JSON.parse(localStorage.getItem("tri-calc")||"null");if(s)Object.assign(state,s);}catch(e){}
+const state={dist:"ol",swim:1500,bike:40,run:10,pSwim:125,pBike:28,pRun:330,t1:150,t2:90,mode:"pace",goal:0,level:"mid"};
+try{const s=JSON.parse(localStorage.getItem("tri-calc")||"null");if(s){Object.assign(state,s);if(!("level" in s))state.level=null;}}catch(e){}
 
 const hms=s=>{s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;
   return (h?h+":"+String(m).padStart(2,"0"):m)+":"+String(x).padStart(2,"0");};
@@ -500,7 +524,7 @@ const km=v=>String(v).replace(".",",");
 const distEl=$("dist");
 PRESETS.forEach(p=>{const b=document.createElement("button");b.type="button";b.dataset.id=p.id;
   b.innerHTML=`<b>${p.name}</b><small>${p.swim?`${km(p.swim/1000)} · ${km(p.bike)} · ${km(p.run)} km`:"wpisz własne odcinki"}</small>`;
-  b.onclick=()=>{state.dist=p.id;if(p.swim){state.swim=p.swim;state.bike=p.bike;state.run=p.run;}render();if(!p.swim){const el=$("dSwim");el.focus();el.select();}};
+  b.onclick=()=>{state.dist=p.id;if(p.swim){state.swim=p.swim;state.bike=p.bike;state.run=p.run;}if(state.level)applyTriLevel(state.level);render();if(!p.swim){const el=$("dSwim");el.focus();el.select();}};
   distEl.appendChild(b);});
 
 // wpisywanie z klawiatury
@@ -521,14 +545,20 @@ function typed(id,parse,min,max,apply,again){
   el.addEventListener("keydown",e=>{if(e.key==="Enter")el.blur();});
 }
 const LIM={pSwim:[30,600],pBike:[5,80],pRun:[120,1200],t1:[0,1800],t2:[0,1800]};
-typed("vSwim",parseTime,...LIM.pSwim,v=>state.pSwim=v,()=>render());
-typed("vBike",parseNum,...LIM.pBike,v=>state.pBike=v,()=>render());
-typed("vRun",parseTime,...LIM.pRun,v=>state.pRun=v,()=>render());
-typed("tT1",parseTime,...LIM.t1,v=>state.t1=v,()=>render());
-typed("tT2",parseTime,...LIM.t2,v=>state.t2=v,()=>render());
+typed("vSwim",parseTime,...LIM.pSwim,v=>{state.pSwim=v;state.level=null;},()=>render());
+typed("vBike",parseNum,...LIM.pBike,v=>{state.pBike=v;state.level=null;},()=>render());
+typed("vRun",parseTime,...LIM.pRun,v=>{state.pRun=v;state.level=null;},()=>render());
+typed("tT1",parseTime,...LIM.t1,v=>{state.t1=v;state.level=null;},()=>render());
+typed("tT2",parseTime,...LIM.t2,v=>{state.t2=v;state.level=null;},()=>render());
 [["dSwim","swim",20000],["dBike","bike",1000],["dRun","run",300]].forEach(([id,k,mx])=>
   typed(id,parseNum,0,mx,v=>{state[k]=v;},()=>render()));
 const dfmt=v=>String(Math.round(v*10000)/10000).replace(".",",");
+// poziomy: tempa bazowe dla dystansu olimpijskiego, skalowane dla innych dystansów
+const TLV={beg:{sw:150,bk:24,rn:390,t1:240,t2:150,name:"Początkujący"},mid:{sw:125,bk:28,rn:330,t1:150,t2:90,name:"Średni"},adv:{sw:100,bk:34,rn:270,t1:90,t2:60,name:"Zaawansowany"}};
+function triFactor(){const b=state.bike;return b<=25?0.97:b<=46?1:b<=95?1.04:1.09;}
+function applyTriLevel(lv){const L=TLV[lv],f=triFactor();state.level=lv;
+  state.pSwim=Math.round(L.sw*f);state.pBike=Math.round(L.bk/f*10)/10;state.pRun=Math.round(L.rn*f/5)*5;state.t1=L.t1;state.t2=L.t2;}
+document.querySelectorAll("#lvTri button").forEach(b=>b.onclick=()=>{applyTriLevel(b.dataset.lv);render();});
 // tryb celu
 function baseTotal(){return state.swim/100*state.pSwim+state.bike/state.pBike*3600+state.run*state.pRun+state.t1+state.t2;}
 $("tmPace").onclick=()=>{state.mode="pace";render();};
@@ -543,10 +573,10 @@ $("tmGoal").onclick=()=>{if(state.mode!=="goal"){state.mode="goal";state.goal=Ma
   el.addEventListener("keydown",e=>{if(e.key==="Enter")el.blur();});});
 const tSign=(d,fmt)=>{const r=Math.round(d);if(!r)return "";return (r<0?"−":"+")+fmt(Math.abs(r));};
 [["pSwim","pSwim"],["pBike","pBike"],["pRun","pRun"]].forEach(([id,k])=>{
-  $(id).addEventListener("input",e=>{state[k]=parseFloat(e.target.value);render();});});
+  $(id).addEventListener("input",e=>{state[k]=parseFloat(e.target.value);state.level=null;render();});});
 const STEP={swim:["pSwim",1],bike:["pBike",.1],run:["pRun",5],t1:["t1",5],t2:["t2",5]};
 document.querySelectorAll(".step").forEach(b=>b.onclick=()=>{const[k,s]=STEP[b.dataset.t];
-  state[k]=Math.min(LIM[k][1],Math.max(LIM[k][0],+(state[k]+s*+b.dataset.d).toFixed(2)));render();});
+  state[k]=Math.min(LIM[k][1],Math.max(LIM[k][0],+(state[k]+s*+b.dataset.d).toFixed(2)));state.level=null;render();});
 
 function setRange(id,v){const el=$(id);el.value=v;const c=Math.min(+el.max,Math.max(+el.min,v));el.style.setProperty("--p",((c-el.min)/(el.max-el.min)*100)+"%");}
 
@@ -556,6 +586,8 @@ function render(fromDist){
   [["dSwim",state.swim],["dBike",state.bike],["dRun",state.run]].forEach(([id,v])=>{const el=$(id);el.readOnly=!own;el.tabIndex=own?0:-1;put(id,dfmt(v));el.style.width=own?"":(dfmt(v).length+.4)+"ch";});
   setRange("pSwim",state.pSwim);setRange("pBike",state.pBike);setRange("pRun",state.pRun);
 
+  document.querySelectorAll("#lvTri button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.lv===state.level));
+  $("lvTriHint").textContent=state.level?`Przykładowe tempa dla poziomu „${TLV[state.level].name}”. Możesz je dowolnie zmienić.`:"Masz własne tempa. Wybierz poziom, żeby wrócić do przykładowych.";
   // tempa efektywne: w trybie celu przeskalowane, w zwykłym te same
   const goalMode=state.mode==="goal";
   $("tmPace").setAttribute("aria-pressed",!goalMode);$("tmGoal").setAttribute("aria-pressed",goalMode);
@@ -653,22 +685,26 @@ const RPRE=[
   {id:"5",name:"5 km",km:5},{id:"10",name:"10 km",km:10},{id:"15",name:"15 km",km:15},
   {id:"hm",name:"Półmaraton",km:21.0975},{id:"m",name:"Maraton",km:42.195},{id:"own",name:"Własny dystans"}
 ];
-const rs={dist:"10",km:10,pace:330,mode:"pace",goal:3300,split:0};
-try{const s=JSON.parse(localStorage.getItem("run-calc")||"null");if(s)Object.assign(rs,s);}catch(e){}
+const rs={dist:"10",km:10,pace:330,mode:"pace",goal:3300,split:0,level:"mid"};
+try{const s=JSON.parse(localStorage.getItem("run-calc")||"null");if(s){Object.assign(rs,s);if(!("level" in s))rs.level=null;}}catch(e){}
 const fkm=v=>(Math.round(v*100)/100).toString().replace(".",",");
 
 const rDistEl=$("rDist");
 RPRE.forEach(p=>{const b=document.createElement("button");b.type="button";b.dataset.id=p.id;
   b.innerHTML=`<b>${p.name}</b><small>${p.km?fkm(p.km)+" km":"wpisz sam"}</small>`;
-  b.onclick=()=>{rs.dist=p.id;if(p.km){rs.km=p.km;}rRender();if(!p.km){const el=$("rKm");el.focus();el.select();}};rDistEl.appendChild(b);});
+  b.onclick=()=>{rs.dist=p.id;if(p.km){rs.km=p.km;}if(rs.level&&rs.mode!=="goal")applyRunLevel(rs.level);rRender();if(!p.km){const el=$("rKm");el.focus();el.select();}};rDistEl.appendChild(b);});
 
 typed("rKm",parseNum,0,300,v=>{rs.km=v;},()=>rRender());
-typed("rPaceV",parseTime,...LIM.pRun,v=>{rs.pace=v;rs.goal=v*rs.km;},()=>rRender());
-$("rRange").addEventListener("input",e=>{rs.pace=+e.target.value;rs.goal=rs.pace*rs.km;rRender();});
-$("rMinus").onclick=()=>{rs.pace=Math.max(150,rs.pace-5);rs.goal=rs.pace*rs.km;rRender();};
-$("rPlus").onclick=()=>{rs.pace=Math.min(600,rs.pace+5);rs.goal=rs.pace*rs.km;rRender();};
+typed("rPaceV",parseTime,...LIM.pRun,v=>{rs.pace=v;rs.goal=v*rs.km;rs.level=null;},()=>rRender());
+$("rRange").addEventListener("input",e=>{rs.pace=+e.target.value;rs.goal=rs.pace*rs.km;rs.level=null;rRender();});
+$("rMinus").onclick=()=>{rs.pace=Math.max(150,rs.pace-5);rs.goal=rs.pace*rs.km;rs.level=null;rRender();};
+$("rPlus").onclick=()=>{rs.pace=Math.min(600,rs.pace+5);rs.goal=rs.pace*rs.km;rs.level=null;rRender();};
 $("mPace").onclick=()=>{rs.mode="pace";rRender();};
 $("mGoal").onclick=()=>{rs.mode="goal";rs.goal=Math.round(rs.pace*rs.km);rRender();};
+// poziomy w biegu: tempo na 10 km, inne dystanse wg wzoru Riegla (wykładnik 1,06)
+const RLV={beg:{p:390,name:"Początkujący"},mid:{p:330,name:"Średni"},adv:{p:270,name:"Zaawansowany"}};
+function applyRunLevel(lv){rs.level=lv;const km=rs.km>0?rs.km:10;rs.pace=Math.round(RLV[lv].p*Math.pow(km/10,0.06));rs.goal=rs.pace*rs.km;}
+document.querySelectorAll("#lvRun button").forEach(b=>b.onclick=()=>{applyRunLevel(b.dataset.lv);if(rs.mode==="goal")rs.mode="pace";rRender();});
 // negative split: różnica tempa 2. połowy względem 1. (s/km), średnie tempo bez zmian
 const SPL=[-60,60];
 const setSplit=v=>{rs.split=Math.max(SPL[0],Math.min(SPL[1],Math.round(v)));rRender();};
@@ -679,11 +715,13 @@ typed("spV",str=>{const m=String(str).trim().replace("−","-").match(/^([+-]?)\
 const sgn=v=>v>0?"+"+v:v<0?"−"+Math.abs(v):"0";
 ["gH","gM","gS"].forEach(id=>$(id).addEventListener("input",()=>{
   const h=+$("gH").value||0,m=+$("gM").value||0,s=+$("gS").value||0;
-  rs.goal=h*3600+m*60+s;rRender(false,true);}));
+  rs.goal=h*3600+m*60+s;rs.level=null;rRender(false,true);}));
 
 function rRender(fromKm,fromGoal){
   rDistEl.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.id===rs.dist));
   {const el=$("rKm"),own=rs.dist==="own";el.readOnly=!own;el.tabIndex=own?0:-1;put("rKm",dfmt(rs.km));el.style.width=own?"":(dfmt(rs.km).length+.4)+"ch";}
+  document.querySelectorAll("#lvRun button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.lv===rs.level));
+  $("lvRunHint").textContent=rs.level?`Przykładowe tempo dla poziomu „${RLV[rs.level].name}”, dopasowane do dystansu.`:"Masz własne tempo. Wybierz poziom, żeby wrócić do przykładowego.";
   const goalMode=rs.mode==="goal";
   $("mPace").setAttribute("aria-pressed",!goalMode);$("mGoal").setAttribute("aria-pressed",goalMode);
   $("paceBox").hidden=goalMode;$("goalBox").hidden=!goalMode;
@@ -757,6 +795,7 @@ function readURL(){
   const HMS=k=>{const p=(q.get(k)||"").split(":").map(Number);if(!p.length||p.some(isNaN))return null;return p.reduce((a,b)=>a*60+b,0);};
   const N=k=>{const v=parseFloat(q.get(k));return isNaN(v)?null:v;};
   if(q.get("tab")==="bieg"){
+    rs.level=null;
     const d=RPRE.find(p=>p.id===q.get("d"));
     if(d){rs.dist=d.id;if(d.km)rs.km=d.km;else if(N("km"))rs.km=N("km");}
     if(q.has("cel")&&HMS("cel")){rs.mode="goal";rs.goal=HMS("cel");rs.pace=rs.goal/rs.km;}
@@ -764,6 +803,7 @@ function readURL(){
     if(N("split")!==null)rs.split=Math.max(-60,Math.min(60,N("split")));
     showTab("bieg");
   }else{
+    state.level=null;
     const d=PRESETS.find(p=>p.id===q.get("d"));
     if(d){state.dist=d.id;if(d.swim){state.swim=d.swim;state.bike=d.bike;state.run=d.run;}
       else{const o=(q.get("odc")||"").split("-").map(Number);if(o.length===3&&o.every(v=>!isNaN(v))){[state.swim,state.bike,state.run]=o;}}}
