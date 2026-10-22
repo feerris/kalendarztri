@@ -130,6 +130,17 @@ label.pace{display:inline-flex;align-items:baseline;gap:2px;cursor:text}
 .pin.bad{border-color:var(--run)}
 .big.pin{width:4.2em;color:var(--fg)}
 .trans .big.pin{font-size:1.2rem}
+/* tryb celu w triathlonie */
+.goalcard{gap:12px}
+.goal{flex-wrap:nowrap;max-width:340px}
+.goal label{flex:1;min-width:0}
+.goal input{width:100%!important}
+.warn{margin:0;padding:10px 12px;border-radius:12px;font-size:.88rem;font-weight:600;color:var(--fg);background:color-mix(in srgb,var(--run) 14%,transparent)}
+.delta{font-weight:700}
+.delta.up{color:var(--run)}
+.delta.down{color:color-mix(in srgb,#1aa36a 85%,var(--fg))}
+.locked .ctrl{display:none}
+.locked .pin{pointer-events:none;background:transparent;padding-left:0;padding-right:0;text-align:left;width:3.3em}
 /* zakładki */
 .tri-ic{display:inline-flex;gap:3px}
 .tabbar button .tri-ic svg{width:17px;height:17px}
@@ -208,7 +219,25 @@ label.pace{display:inline-flex;align-items:baseline;gap:2px;cursor:text}
     </section>
 
     <section style="display:flex;flex-direction:column;gap:14px">
-      <div class="sect" style="margin:0">Tempo</div>
+      <div class="sect" style="margin:0">Co chcesz policzyć?</div>
+      <div class="mode">
+        <button type="button" id="tmPace" aria-pressed="true">Znam tempa</button>
+        <button type="button" id="tmGoal" aria-pressed="false">Mam cel czasowy</button>
+      </div>
+
+      <article class="card goalcard" id="tGoalBox" style="--c:var(--swim)" hidden>
+        <div class="goal">
+          <label for="tgH">godz.<input id="tgH" type="text" inputmode="numeric" autocomplete="off"></label>
+          <span class="colon">:</span>
+          <label for="tgM">min<input id="tgM" type="text" inputmode="numeric" autocomplete="off"></label>
+          <span class="colon">:</span>
+          <label for="tgS">sek<input id="tgS" type="text" inputmode="numeric" autocomplete="off"></label>
+        </div>
+        <p class="alt" style="margin:0">Wpisz docelowy czas na mecie. Kalkulator rozłoży go na trzy dyscypliny w tych samych proporcjach co Twoje tempa z trybu „Znam tempa”. Strefy zmian T1 i T2 zostają bez zmian.</p>
+        <p class="warn" id="tGoalWarn" hidden></p>
+      </article>
+
+      <div class="sect" style="margin:6px 0 0" id="tPaceHead">Tempo</div>
 
       <article class="card" style="--c:var(--swim)">
         <div class="head">
@@ -216,7 +245,7 @@ label.pace{display:inline-flex;align-items:baseline;gap:2px;cursor:text}
           <div class="ttl"><h2>Pływanie</h2><label for="dSwim">Dystans <input id="dSwim" type="text" inputmode="numeric" autocomplete="off"> m</label></div>
           <div class="big num" id="tSwim">–<small>czas</small></div>
         </div>
-        <div class="pacebox"><label class="pace"><input class="pin num" id="vSwim" type="text" inputmode="decimal" autocomplete="off" aria-label="Tempo pływania, minuty:sekundy na 100 m"><span>/100 m</span></label><div class="alt">wpisz, np. 2:05</div></div>
+        <div class="pacebox"><label class="pace"><input class="pin num" id="vSwim" type="text" inputmode="decimal" autocomplete="off" aria-label="Tempo pływania, minuty:sekundy na 100 m"><span>/100 m</span></label><div class="alt" id="aSwim">wpisz, np. 2:05</div></div>
         <div class="ctrl">
           <button class="step" data-t="swim" data-d="-1" aria-label="Szybciej">−</button>
           <input type="range" id="pSwim" min="60" max="240" step="1" aria-label="Tempo pływania">
@@ -316,8 +345,8 @@ label.pace{display:inline-flex;align-items:baseline;gap:2px;cursor:text}
     <section style="display:flex;flex-direction:column;gap:14px">
       <div class="sect" style="margin:0">Co chcesz policzyć?</div>
       <div class="mode">
-        <button type="button" id="mPace" aria-pressed="true">Znam tempo → czas</button>
-        <button type="button" id="mGoal" aria-pressed="false">Mam cel → tempo</button>
+        <button type="button" id="mPace" aria-pressed="true">Znam tempo</button>
+        <button type="button" id="mGoal" aria-pressed="false">Mam cel czasowy</button>
       </div>
 
       <article class="card" style="--c:var(--run)">
@@ -368,7 +397,7 @@ const PRESETS=[
   {id:"own",name:"Własny dystans"}
 ];
 const $=id=>document.getElementById(id);
-const state={dist:"ol",swim:1500,bike:40,run:10,pSwim:125,pBike:28,pRun:330,t1:150,t2:90};
+const state={dist:"ol",swim:1500,bike:40,run:10,pSwim:125,pBike:28,pRun:330,t1:150,t2:90,mode:"pace",goal:0};
 try{const s=JSON.parse(localStorage.getItem("tri-calc")||"null");if(s)Object.assign(state,s);}catch(e){}
 
 const hms=s=>{s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;
@@ -408,6 +437,19 @@ typed("tT2",parseTime,...LIM.t2,v=>state.t2=v,()=>render());
 [["dSwim","swim",20000],["dBike","bike",1000],["dRun","run",300]].forEach(([id,k,mx])=>
   typed(id,parseNum,0,mx,v=>{state[k]=v;},()=>render()));
 const dfmt=v=>String(Math.round(v*10000)/10000).replace(".",",");
+// tryb celu
+function baseTotal(){return state.swim/100*state.pSwim+state.bike/state.pBike*3600+state.run*state.pRun+state.t1+state.t2;}
+$("tmPace").onclick=()=>{state.mode="pace";render();};
+$("tmGoal").onclick=()=>{if(state.mode!=="goal"){state.mode="goal";state.goal=Math.round(baseTotal()/60)*60;}render();};
+["tgH","tgM","tgS"].forEach(id=>{const el=$(id);
+  el.addEventListener("input",()=>{const h=$("tgH").value.trim(),m=$("tgM").value.trim(),x=$("tgS").value.trim();
+    const ok=[h,m,x].every(v=>v===""||/^\d{1,2}$/.test(v))&&(+m||0)<60&&(+x||0)<60;
+    el.classList.toggle("bad",!ok);if(!ok)return;
+    state.goal=(+h||0)*3600+(+m||0)*60+(+x||0);render();});
+  el.addEventListener("focus",()=>el.select());
+  el.addEventListener("blur",()=>{el.classList.remove("bad");render();});
+  el.addEventListener("keydown",e=>{if(e.key==="Enter")el.blur();});});
+const tSign=(d,fmt)=>{const r=Math.round(d);if(!r)return "";return (r<0?"−":"+")+fmt(Math.abs(r));};
 [["pSwim","pSwim"],["pBike","pBike"],["pRun","pRun"],["pT1","t1"],["pT2","t2"]].forEach(([id,k])=>{
   $(id).addEventListener("input",e=>{state[k]=parseFloat(e.target.value);render();});});
 const STEP={swim:["pSwim",1],bike:["pBike",.1],run:["pRun",5],t1:["t1",5],t2:["t2",5]};
@@ -422,20 +464,50 @@ function render(fromDist){
   [["dSwim",state.swim],["dBike",state.bike],["dRun",state.run]].forEach(([id,v])=>{const el=$(id);el.readOnly=!own;el.tabIndex=own?0:-1;put(id,dfmt(v));el.style.width=own?"":(dfmt(v).length+.4)+"ch";});
   setRange("pSwim",state.pSwim);setRange("pBike",state.pBike);setRange("pRun",state.pRun);setRange("pT1",state.t1);setRange("pT2",state.t2);
 
-  const tS=state.swim/100*state.pSwim, tB=state.bike/state.pBike*3600, tR=state.run*state.pRun;
+  // tempa efektywne: w trybie celu przeskalowane, w zwykłym te same
+  const goalMode=state.mode==="goal";
+  $("tmPace").setAttribute("aria-pressed",!goalMode);$("tmGoal").setAttribute("aria-pressed",goalMode);
+  $("tGoalBox").hidden=!goalMode;$("tPaceHead").textContent=goalMode?"Potrzebne tempo":"Tempo";
+  document.querySelectorAll("#tabTri .card[style*='--swim'],#tabTri .card[style*='--bike'],#tabTri .card[style*='--run']").forEach(c=>{if(c.id!=="tGoalBox")c.classList.toggle("locked",goalMode);});
+  ["vSwim","vBike","vRun"].forEach(id=>{$(id).readOnly=goalMode;$(id).tabIndex=goalMode?-1:0;});
+  let pS=state.pSwim,pB=state.pBike,pR=state.pRun,warn="";
+  const bS=state.swim/100*pS,bB=state.bike/pB*3600,bR=state.run*pR,sport=bS+bB+bR;
+  if(goalMode){
+    const avail=state.goal-state.t1-state.t2;
+    if(sport<=0)warn="Najpierw ustaw dystans większy od zera.";
+    else if(avail<=0)warn="Cel jest krótszy niż same strefy zmian. Wpisz dłuższy czas albo skróć T1 i T2.";
+    else{const f=avail/sport;pS=pS*f;pB=pB/f;pR=pR*f;
+      if(pS<60||pB>45||pR<180)warn="Takie tempo to poziom zawodowców. Sprawdź, czy cel jest realny.";
+      else if(pS>240||pB<15||pR>540)warn="To bardzo spokojne tempo. Na pewno taki jest Twój cel?";}
+    if(document.activeElement&&!["tgH","tgM","tgS"].includes(document.activeElement.id)){const g=Math.round(state.goal);
+      $("tgH").value=Math.floor(g/3600);$("tgM").value=String(Math.floor(g%3600/60)).padStart(2,"0");$("tgS").value=String(g%60).padStart(2,"0");}
+  }
+  $("tGoalWarn").hidden=!warn;$("tGoalWarn").textContent=warn;
+  const bad=goalMode&&(sport<=0||state.goal-state.t1-state.t2<=0);
+  const tS=bad?bS:state.swim/100*pS, tB=bad?bB:state.bike/pB*3600, tR=bad?bR:state.run*pR;
+  if(bad){pS=state.pSwim;pB=state.pBike;pR=state.pRun;}
   const parts=[tS,state.t1,tB,state.t2,tR], total=parts.reduce((a,b)=>a+b,0);
 
   $("tSwim").innerHTML=hms(tS)+"<small>czas</small>";
   $("tBike").innerHTML=hms(tB)+"<small>czas</small>";
   $("tRun").innerHTML=hms(tR)+"<small>czas</small>";
   put("tT1",ms(state.t1));put("tT2",ms(state.t2));
-  put("vSwim",ms(state.pSwim));
-  put("vBike",state.pBike.toFixed(1).replace(".",","));
-  $("aBike").textContent=`${ms(3600/state.pBike)} min na km`;
-  put("vRun",ms(state.pRun));
-  $("aRun").textContent=`${(3600/state.pRun).toFixed(1).replace(".",",")} km/h`;
+  put("vSwim",ms(pS));
+  put("vBike",pB.toFixed(1).replace(".",","));
+  put("vRun",ms(pR));
+  if(goalMode&&!bad){
+    const dS=tSign(pS-state.pSwim,ms),dR=tSign(pR-state.pRun,ms),dBv=Math.round((pB-state.pBike)*10)/10;
+    const tag=(t,up,u)=>t?`<span class="delta ${up?"up":"down"}">${t}${u}</span> względem Twojego tempa`:"tak jak Twoje tempo";
+    $("aSwim").innerHTML=tag(dS,pS>state.pSwim," /100 m");
+    $("aBike").innerHTML=tag(dBv?(dBv>0?"+":"−")+Math.abs(dBv).toFixed(1).replace(".",","):"",dBv<0," km/h");
+    $("aRun").innerHTML=tag(dR,pR>state.pRun," /km");
+  }else{
+    $("aSwim").textContent="wpisz, np. 2:05";
+    $("aBike").textContent=`${ms(3600/pB)} min na km`;
+    $("aRun").textContent=`${(3600/pR).toFixed(1).replace(".",",")} km/h`;
+  }
   $("total").textContent=hms(total);
-  $("dname").textContent=PRESETS.find(x=>x.id===state.dist).name;
+  $("dname").textContent=PRESETS.find(x=>x.id===state.dist).name+(goalMode&&!bad?" · cel":"");
 
   const bars=$("bar").children;parts.forEach((v,i)=>bars[i].style.flexGrow=total?v/total:0);
   const names=[["Pływanie","--swim"],["T1","--trans"],["Rower","--bike"],["T2","--trans"],["Bieg","--run"]];
