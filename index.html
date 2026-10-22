@@ -652,7 +652,7 @@ $("tmGoal").onclick=()=>{if(state.mode!=="goal"){state.mode="goal";state.goal=Ma
 const tSign=(d,fmt)=>{const r=Math.round(d);if(!r)return "";return (r<0?"−":"+")+fmt(Math.abs(r));};
 [["pSwim","pSwim"],["pBike","pBike"],["pRun","pRun"]].forEach(([id,k])=>{
   $(id).addEventListener("input",e=>{state[k]=parseFloat(e.target.value);state.level=null;render();});});
-const STEP={swim:["pSwim",1],bike:["pBike",.1],run:["pRun",5],t1:["t1",5],t2:["t2",5]};
+const STEP={swim:["pSwim",1],bike:["pBike",.1],run:["pRun",1],t1:["t1",5],t2:["t2",5]};
 document.querySelectorAll(".step").forEach(b=>b.onclick=()=>{const[k,s]=STEP[b.dataset.t];
   state[k]=Math.min(LIM[k][1],Math.max(LIM[k][0],+(state[k]+s*+b.dataset.d).toFixed(2)));state.level=null;render();});
 
@@ -776,8 +776,8 @@ RPRE.forEach(p=>{const b=document.createElement("button");b.type="button";b.data
 typed("rKm",parseNum,0,300,v=>{rs.km=v;},()=>rRender());
 typed("rPaceV",parseTime,...LIM.pRun,v=>{rs.pace=v;rs.goal=v*rs.km;rs.level=null;},()=>rRender());
 $("rRange").addEventListener("input",e=>{rs.pace=+e.target.value;rs.goal=rs.pace*rs.km;rs.level=null;rRender();});
-$("rMinus").onclick=()=>{rs.pace=Math.max(150,rs.pace-5);rs.goal=rs.pace*rs.km;rs.level=null;rRender();};
-$("rPlus").onclick=()=>{rs.pace=Math.min(600,rs.pace+5);rs.goal=rs.pace*rs.km;rs.level=null;rRender();};
+$("rMinus").onclick=()=>{rs.pace=Math.max(150,Math.round(rs.pace)-1);rs.goal=rs.pace*rs.km;rs.level=null;rRender();};
+$("rPlus").onclick=()=>{rs.pace=Math.min(600,Math.round(rs.pace)+1);rs.goal=rs.pace*rs.km;rs.level=null;rRender();};
 $("mPace").onclick=()=>{rs.mode="pace";rRender();};
 $("mGoal").onclick=()=>{rs.mode="goal";rs.goal=Math.round(rs.pace*rs.km);rRender();};
 // poziomy w biegu: tempo na 10 km, inne dystanse wg wzoru Riegla (wykładnik 1,06)
