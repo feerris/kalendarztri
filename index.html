@@ -173,6 +173,23 @@ label.pace{display:inline-flex;align-items:baseline;gap:2px;cursor:text}
 .halves span{font-size:.75rem;font-weight:600;color:var(--muted)}
 .halves b{font-family:var(--display);font-size:1.1rem;font-weight:600;font-variant-numeric:tabular-nums}
 .km.mid{outline:1.5px solid color-mix(in srgb,var(--run) 55%,transparent);outline-offset:-1.5px}
+/* pasek wyniku na dole (telefon) */
+.rbar{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;align-items:center;gap:14px;border:0;font:inherit;text-align:left;cursor:pointer;
+  color:var(--hero-fg);background:linear-gradient(160deg,var(--hero-a),var(--hero-b));box-shadow:0 -6px 24px rgba(14,23,38,.18);
+  padding:12px max(16px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+  border-radius:20px 20px 0 0;transform:translateY(110%);transition:transform .25s ease}
+.rbar.show{transform:none}
+.rb-l{display:flex;flex-direction:column;line-height:1.1;flex:none}
+.rb-l small{font-size:.72rem;font-weight:600;opacity:.65;letter-spacing:.04em}
+.rb-l b{font-size:1.6rem;font-weight:700}
+.rb-r{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.rb-bar{display:flex;gap:2px;height:8px;width:100%;max-width:200px;border-radius:999px;overflow:hidden}
+.rb-bar i{display:block;border-radius:999px;min-width:2px}
+.rb-pace{font-size:.95rem;font-weight:600;opacity:.85}
+.rb-up{width:22px;height:22px;flex:none;opacity:.7}
+@media (min-width:861px){.rbar{display:none!important}}
+@media (max-width:860px){body{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}}
+@media (prefers-reduced-motion:reduce){.rbar{transition:none}}
 /* zakładki */
 .tri-ic{display:inline-flex;gap:3px}
 .tabbar button .tri-ic svg{width:17px;height:17px}
@@ -430,6 +447,12 @@ label.pace{display:inline-flex;align-items:baseline;gap:2px;cursor:text}
   </main>
 </div>
 
+<button type="button" class="rbar" id="rbar" aria-label="Pokaż szczegóły wyniku" hidden>
+  <span class="rb-l"><small id="rbName"></small><b class="num" id="rbTotal">–</b></span>
+  <span class="rb-r"><span class="rb-bar" id="rbBar"><i style="background:var(--swim)"></i><i style="background:var(--trans)"></i><i style="background:var(--bike)"></i><i style="background:var(--trans)"></i><i style="background:var(--run)"></i></span><span class="rb-pace num" id="rbPace"></span></span>
+  <svg class="rb-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>
+</button>
+
 <script>
 const PRESETS=[
   {id:"ss",name:"Super Sprint",swim:400,bike:10,run:2.5},
@@ -559,8 +582,34 @@ function render(fromDist){
   let acc=0;
   $("splits").innerHTML=parts.map((v,i)=>{acc+=v;return `<div class="r" style="--c:var(${names[i][1]})"><i class="dot"></i><span class="seg">${names[i][0]}</span><span class="clock num">${hms(acc)}</span><span class="t num">${hms(v)}</span></div>`;}).join("");
   try{localStorage.setItem("tri-calc",JSON.stringify(state));}catch(e){}
+  updateBar();
 }
 render();
+
+/* ---------- pasek wyniku na dole ---------- */
+function updateBar(){
+  const run=!$("tabRun").hidden;
+  $("rbName").textContent=(run?$("rName"):$("dname")).textContent;
+  $("rbTotal").textContent=(run?$("rTotal"):$("total")).textContent;
+  $("rbBar").hidden=run;
+  if(!run){const src=$("bar").children,dst=$("rbBar").children;for(let i=0;i<src.length;i++)dst[i].style.flexGrow=src[i].style.flexGrow;}
+  $("rbPace").textContent=run?$("rPace").textContent+" /km":"";
+  $("rbPace").hidden=!run;
+}
+const heroVis=new Map();
+function syncBar(){
+  const run=!$("tabRun").hidden,h=document.querySelector(run?"#tabRun .hero":"#tabTri .hero");
+  const show=heroVis.has(h)?!heroVis.get(h):false;
+  const bar=$("rbar");
+  if(show){bar.hidden=false;requestAnimationFrame(()=>bar.classList.add("show"));}
+  else bar.classList.remove("show");
+}
+if("IntersectionObserver" in window){
+  const io=new IntersectionObserver(es=>{es.forEach(e=>heroVis.set(e.target,e.isIntersecting));syncBar();},{threshold:0,rootMargin:"-40% 0px 0px 0px"});
+  document.querySelectorAll(".hero").forEach(h=>io.observe(h));
+}
+$("rbar").onclick=()=>{const run=!$("tabRun").hidden;
+  document.querySelector(run?"#tabRun .hero":"#tabTri .hero").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"auto":"smooth",block:"start"});};
 
 /* ---------- zakładki ---------- */
 function showTab(t){
@@ -568,6 +617,7 @@ function showTab(t){
   $("tabTri").hidden=run;$("tabRun").hidden=!run;
   $("tab-tri").setAttribute("aria-selected",!run);$("tab-run").setAttribute("aria-selected",run);
   try{localStorage.setItem("tri-tab",t);}catch(e){}
+  updateBar();syncBar();
 }
 document.querySelectorAll(".tabbar button").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 let startTab=location.hash==="#bieg"?"bieg":location.hash==="#triathlon"?"triathlon":null;
@@ -655,6 +705,7 @@ function rRender(fromKm,fromGoal){
   $("rKms").innerHTML=out.join("")||`<div class="alt">Wpisz dystans, aby zobaczyć międzyczasy.</div>`;
 
   try{localStorage.setItem("run-calc",JSON.stringify(rs));}catch(e){}
+  updateBar();
 }
 rRender();
 
