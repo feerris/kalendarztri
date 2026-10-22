@@ -1,6 +1,6 @@
 // Pozwala używać kalkulatora bez internetu.
 // Przy każdej zmianie strony podbij numer wersji, żeby telefony pobrały nowe pliki.
-const VERSION = "v2";
+const VERSION = "v3";
 const CACHE = "kalkulator-" + VERSION;
 const FILES = ["./", "index.html", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png"];
 
