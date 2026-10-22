@@ -66,12 +66,16 @@ input[type=range]{touch-action:pan-x}
 .bar{display:flex;height:10px;border-radius:999px;overflow:hidden;gap:3px}
 .bar i{display:block;border-radius:999px;transition:flex-grow .3s ease;min-width:3px}
 .splits{display:flex;flex-direction:column;gap:2px}
-.splits .r{display:grid;grid-template-columns:auto 1fr auto auto;gap:12px;align-items:center;padding:9px 0;border-top:1px solid rgba(255,255,255,.08);font-size:.92rem}
+.splits .r{display:grid;grid-template-columns:10px 1fr auto auto;gap:12px;align-items:center;padding:9px 0;border-top:1px solid rgba(255,255,255,.08);font-size:.92rem}
 .splits .r:first-child{border-top:0}
 .splits .dot{width:10px;height:10px;border-radius:50%;background:var(--c)}
 .splits .seg{font-weight:600}
 .splits .clock{opacity:.55;font-size:.82rem}
-.splits .t{font-weight:600;min-width:5.5em;text-align:right}
+.splits .t{font-weight:700;min-width:4.6em;text-align:right;font-size:1rem}
+.splits .clock{min-width:4.6em;text-align:right}
+.splits .r.hd{padding:0 0 6px;font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.55}
+.splits .r.hd span:not(:first-of-type){text-align:right}
+.splits .r.hd+.r{border-top:1px solid rgba(255,255,255,.14)}
 
 /* kolumna ustawień */
 .main{display:flex;flex-direction:column;gap:20px;min-width:0}
@@ -287,7 +291,6 @@ label.pace{display:inline-flex;align-items:baseline;gap:2px;cursor:text}
       <i style="background:var(--swim)"></i><i style="background:var(--trans)"></i><i style="background:var(--bike)"></i><i style="background:var(--trans)"></i><i style="background:var(--run)"></i>
     </div>
     <div>
-      <div class="cap" style="margin-bottom:6px">Etap · zegar wyścigu · czas odcinka</div>
       <div class="splits" id="splits"></div>
     </div>
     <div class="sharebox" hidden><p>Skopiuj ten link i wyślij go dalej:</p><input type="text" readonly aria-label="Link z ustawieniami"></div>
@@ -417,7 +420,6 @@ label.pace{display:inline-flex;align-items:baseline;gap:2px;cursor:text}
       <div class="pill"><b class="num" id="rSpeed">–</b><small>km/h</small></div>
     </div>
     <div>
-      <div class="cap" style="margin-bottom:6px">Punkty kontrolne · zegar wyścigu</div>
       <div class="splits" id="rChecks"></div>
     </div>
     <div class="sharebox" hidden><p>Skopiuj ten link i wyślij go dalej:</p><input type="text" readonly aria-label="Link z ustawieniami"></div>
@@ -639,7 +641,7 @@ function render(fromDist){
   const bars=$("bar").children;parts.forEach((v,i)=>bars[i].style.flexGrow=total?v/total:0);
   const names=[["Pływanie","--swim"],["T1","--trans"],["Rower","--bike"],["T2","--trans"],["Bieg","--run"]];
   let acc=0;
-  $("splits").innerHTML=parts.map((v,i)=>{acc+=v;return `<div class="r" style="--c:var(${names[i][1]})"><i class="dot"></i><span class="seg">${names[i][0]}</span><span class="clock num">${hms(acc)}</span><span class="t num">${hms(v)}</span></div>`;}).join("");
+  $("splits").innerHTML=`<div class="r hd"><i></i><span>Etap</span><span>Czas etapu</span><span>Na zegarze</span></div>`+parts.map((v,i)=>{acc+=v;return `<div class="r" style="--c:var(${names[i][1]})"><i class="dot"></i><span class="seg">${names[i][0]}</span><span class="t num">${hms(v)}</span><span class="clock num">${hms(acc)}</span></div>`;}).join("");
   try{localStorage.setItem("tri-calc",JSON.stringify(state));}catch(e){}
   updateBar();
 }
@@ -759,7 +761,7 @@ function rRender(fromKm,fromGoal){
   const rows=cps.map(k=>[names[k],k]);
   if(rs.km>=2&&!cps.some(k=>Math.abs(k-H)<0.05))rows.push(["Półmetek",H]);
   rows.sort((a,b)=>a[1]-b[1]);rows.push(["Meta",rs.km]);
-  $("rChecks").innerHTML=rows.map(([n,k])=>
+  $("rChecks").innerHTML=`<div class="r hd" style="grid-template-columns:auto 1fr auto"><i></i><span>Punkt</span><span>Na zegarze</span></div>`+rows.map(([n,k])=>
     `<div class="r" style="--c:var(--run);grid-template-columns:auto 1fr auto"><i class="dot"></i><span class="seg">${n}</span><span class="t num">${hms(at(k))}</span></div>`).join("");
 
   // międzyczasy co km (max 100)
