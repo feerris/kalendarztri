@@ -159,6 +159,20 @@ label.pace{display:inline-flex;align-items:baseline;gap:2px;cursor:text}
 .sharebox{display:flex;flex-direction:column;gap:6px;font-size:.85rem}
 .sharebox p{margin:0;opacity:.8}
 .sharebox input{font:inherit;font-size:16px;width:100%;padding:8px 10px;border-radius:10px;border:0;background:rgba(255,255,255,.95);color:#0e1726}
+/* negative split */
+.splitctrl{flex-wrap:wrap}
+.spval{display:inline-flex;align-items:baseline;gap:4px;font-size:1.1rem;font-weight:600;color:var(--c)}
+.spval span{font-size:.85rem;color:var(--muted);font-weight:500}
+.spval .pin{width:3.6em}
+.chips{display:flex;gap:6px;margin-left:auto}
+.chip{font:inherit;font-size:.82rem;font-weight:600;padding:7px 12px;border-radius:999px;border:1.5px solid var(--line);background:transparent;color:var(--fg);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+@media (max-width:480px){.chips{margin-left:0;width:100%}.chip{flex:1}}
+.halves{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.halves div{background:var(--surface-2);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.halves span{font-size:.75rem;font-weight:600;color:var(--muted)}
+.halves b{font-family:var(--display);font-size:1.1rem;font-weight:600;font-variant-numeric:tabular-nums}
+.km.mid{outline:1.5px solid color-mix(in srgb,var(--run) 55%,transparent);outline-offset:-1.5px}
 /* zakładki */
 .tri-ic{display:inline-flex;gap:3px}
 .tabbar button .tri-ic svg{width:17px;height:17px}
@@ -398,7 +412,18 @@ label.pace{display:inline-flex;align-items:baseline;gap:2px;cursor:text}
       </article>
 
       <article class="card" style="--c:var(--run)">
-        <div class="pacebox"><h2 style="margin:0;font-family:var(--display);font-size:1.15rem;font-weight:600">Międzyczasy co kilometr</h2><div class="alt">równe tempo na całym dystansie</div></div>
+        <div class="pacebox"><h2 style="margin:0;font-family:var(--display);font-size:1.15rem;font-weight:600">Rozkład tempa</h2><div class="alt" id="spHint">druga połowa vs pierwsza</div></div>
+        <div class="ctrl splitctrl">
+          <button class="step" id="spMinus" aria-label="Druga połowa szybciej o sekundę">−</button>
+          <label class="spval"><input class="pin num" id="spV" type="text" inputmode="numeric" autocomplete="off" aria-label="Różnica tempa drugiej połowy w sekundach na km"><span>s/km</span></label>
+          <button class="step" id="spPlus" aria-label="Druga połowa wolniej o sekundę">+</button>
+          <div class="chips">
+            <button type="button" class="chip" data-sp="0">Równo</button>
+            <button type="button" class="chip" data-sp="-10">Negative −10 s</button>
+          </div>
+        </div>
+        <div class="halves" id="spHalves"></div>
+        <div class="pacebox" style="margin-top:4px"><h2 style="margin:0;font-family:var(--display);font-size:1.15rem;font-weight:600">Międzyczasy co kilometr</h2><div class="alt" id="kmHint">równe tempo na całym dystansie</div></div>
         <div class="kms" id="rKms"></div>
       </article>
     </section>
@@ -554,7 +579,7 @@ const RPRE=[
   {id:"5",name:"5 km",km:5},{id:"10",name:"10 km",km:10},{id:"15",name:"15 km",km:15},
   {id:"hm",name:"Półmaraton",km:21.0975},{id:"m",name:"Maraton",km:42.195},{id:"own",name:"Własny dystans"}
 ];
-const rs={dist:"10",km:10,pace:330,mode:"pace",goal:3300};
+const rs={dist:"10",km:10,pace:330,mode:"pace",goal:3300,split:0};
 try{const s=JSON.parse(localStorage.getItem("run-calc")||"null");if(s)Object.assign(rs,s);}catch(e){}
 const fkm=v=>(Math.round(v*100)/100).toString().replace(".",",");
 
@@ -570,6 +595,14 @@ $("rMinus").onclick=()=>{rs.pace=Math.max(150,rs.pace-5);rs.goal=rs.pace*rs.km;r
 $("rPlus").onclick=()=>{rs.pace=Math.min(600,rs.pace+5);rs.goal=rs.pace*rs.km;rRender();};
 $("mPace").onclick=()=>{rs.mode="pace";rRender();};
 $("mGoal").onclick=()=>{rs.mode="goal";rs.goal=Math.round(rs.pace*rs.km);rRender();};
+// negative split: różnica tempa 2. połowy względem 1. (s/km), średnie tempo bez zmian
+const SPL=[-60,60];
+const setSplit=v=>{rs.split=Math.max(SPL[0],Math.min(SPL[1],Math.round(v)));rRender();};
+$("spMinus").onclick=()=>setSplit((rs.split||0)-1);
+$("spPlus").onclick=()=>setSplit((rs.split||0)+1);
+document.querySelectorAll(".chip[data-sp]").forEach(c=>c.onclick=()=>setSplit(+c.dataset.sp));
+typed("spV",str=>{const m=String(str).trim().replace("−","-").match(/^([+-]?)\s*(\d{1,2})$/);return m?(m[1]==="-"?-1:1)*+m[2]:NaN;},...SPL,v=>{rs.split=v;},()=>rRender());
+const sgn=v=>v>0?"+"+v:v<0?"−"+Math.abs(v):"0";
 ["gH","gM","gS"].forEach(id=>$(id).addEventListener("input",()=>{
   const h=+$("gH").value||0,m=+$("gM").value||0,s=+$("gS").value||0;
   rs.goal=h*3600+m*60+s;rRender(false,true);}));
@@ -595,16 +628,29 @@ function rRender(fromKm,fromGoal){
   put("rPaceV",ms(pace));
   $("rAlt").textContent=`${(3600/pace).toFixed(1).replace(".",",")} km/h`;
 
+  // rozkład tempa na połówki
+  const sp=rs.split||0,H=rs.km/2,p1=pace-sp/2,p2=pace+sp/2;
+  const at=d=>d<=H?d*p1:H*p1+(d-H)*p2;
+  put("spV",sgn(sp));
+  document.querySelectorAll(".chip[data-sp]").forEach(c=>c.setAttribute("aria-pressed",+c.dataset.sp===sp));
+  $("spHint").textContent=sp<0?"druga połowa szybciej (negative split)":sp>0?"druga połowa wolniej (positive split)":"równe tempo przez cały bieg";
+  $("spHalves").innerHTML=`<div><span>1. połowa · ${fkm(H)} km</span><b>${ms(p1)} /km</b><span>${hms(H*p1)}</span></div><div><span>2. połowa · ${fkm(H)} km</span><b>${ms(p2)} /km</b><span>${hms(H*p2)}</span></div>`;
+  $("kmHint").textContent=sp?"z uwzględnieniem rozkładu tempa":"równe tempo na całym dystansie";
+  document.querySelector("#rPace+small").textContent=sp?"średnie tempo /km":"tempo /km";
+
   // punkty kontrolne
   const cps=[5,10,21.0975,30,42.195].filter(k=>k<rs.km-0.05);
   const names={5:"5 km",10:"10 km",21.0975:"Półmaraton",30:"30 km",42.195:"Maraton"};
-  $("rChecks").innerHTML=[...cps.map(k=>[names[k],k]),["Meta",rs.km]].map(([n,k])=>
-    `<div class="r" style="--c:var(--run);grid-template-columns:auto 1fr auto"><i class="dot"></i><span class="seg">${n}</span><span class="t num">${hms(k*pace)}</span></div>`).join("");
+  const rows=cps.map(k=>[names[k],k]);
+  if(rs.km>=2&&!cps.some(k=>Math.abs(k-H)<0.05))rows.push(["Półmetek",H]);
+  rows.sort((a,b)=>a[1]-b[1]);rows.push(["Meta",rs.km]);
+  $("rChecks").innerHTML=rows.map(([n,k])=>
+    `<div class="r" style="--c:var(--run);grid-template-columns:auto 1fr auto"><i class="dot"></i><span class="seg">${n}</span><span class="t num">${hms(at(k))}</span></div>`).join("");
 
   // międzyczasy co km (max 100)
   const full=Math.min(100,Math.floor(rs.km+1e-9)),out=[];
-  const halfKm=Math.ceil(rs.km/2);
-  for(let i=1;i<=full;i++)out.push(`<div class="km"><span>km ${i}</span><b class="num">${hms(i*pace)}</b></div>`);
+  const midKm=Math.ceil(H-1e-9);
+  for(let i=1;i<=full;i++)out.push(`<div class="km${sp&&i===midKm?" mid":""}"><span>km ${i}${sp&&i===midKm?" · półmetek":""}</span><b class="num">${hms(at(i))}</b></div>`);
   if(rs.km-full>0.01&&full<100)out.push(`<div class="km"><span>meta · ${fkm(rs.km)} km</span><b class="num">${hms(total)}</b></div>`);
   $("rKms").innerHTML=out.join("")||`<div class="alt">Wpisz dystans, aby zobaczyć międzyczasy.</div>`;
 
