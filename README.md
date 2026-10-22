@@ -13,6 +13,14 @@ Prosta strona (jeden plik `index.html`) do liczenia czasów w triathlonie i bieg
 - Dwa tryby: tempo → czas na mecie albo docelowy czas → potrzebne tempo.
 - Punkty kontrolne i międzyczasy co kilometr.
 
+## Aplikacja na telefonie
+Strona działa jak aplikacja: ma własną ikonę i działa bez internetu.
+- **iPhone (Safari):** przycisk Udostępnij → „Do ekranu początkowego”.
+- **Android (Chrome):** menu ⋮ → „Zainstaluj aplikację” albo „Dodaj do ekranu głównego”.
+
+Pliki: `manifest.webmanifest`, `sw.js` (praca offline), ikony `icon*.png`, `icon.svg`, `apple-touch-icon.png`.
+Po zmianie ikon podbij `VERSION` w `sw.js`.
+
 ## Publikacja
 Strona jest statyczna, nie wymaga budowania. Wystarczy opublikować `index.html`,
 np. przez Cloudflare Pages (połączenie z tym repozytorium albo wgranie pliku ręcznie).
