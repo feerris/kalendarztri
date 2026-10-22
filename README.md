@@ -2,6 +2,12 @@
 
 Prosta strona (jeden plik `index.html`) do liczenia czasów w triathlonie i biegu.
 
+## Wygoda
+- Wybór poziomu (Początkujący / Średni / Zaawansowany) ustawia przykładowe tempa dopasowane do dystansu.
+- Na telefonie czas na mecie jest zawsze widoczny w pasku na dole ekranu.
+- Przytrzymanie − / + zmienia wartość coraz szybciej.
+- Plan A: zapisz ustawienia i porównuj z nimi kolejne zmiany (różnica czasu na mecie i na każdej dyscyplinie).
+
 ## Triathlon
 - Dystanse: Super Sprint, Sprint, 1/8 Ironman, Olimpijski, 1/4 Ironman, 1/2 Ironman, Ironman lub własny.
 - Tempo pływania (min/100 m), prędkość roweru (km/h, co 0,1), tempo biegu (min/km) oraz czasy stref zmian T1 i T2.
