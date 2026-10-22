@@ -23,7 +23,7 @@
 :root{
   --bg:#f3f5f8; --surface:#ffffff; --surface-2:#eef1f5; --fg:#0e1726; --muted:#66748a; --line:#e2e7ee;
   --swim:#1f8fff; --bike:#ff8a1f; --run:#f0436a; --trans:#8b97a8;
-  --hero-a:#0e1726; --hero-b:#1b2a44; --hero-fg:#ffffff;
+  --hero-a:#0e1726; --hero-b:#1b2a44; --hero-fg:#ffffff; --good:#3ddc97; --badh:#ff7a93;
   --display:"Sora","Segoe UI",system-ui,sans-serif;
   --body:"Manrope",system-ui,-apple-system,sans-serif;
   --r:20px; --shadow:0 1px 2px rgba(14,23,38,.04),0 8px 24px rgba(14,23,38,.06);
@@ -230,6 +230,23 @@ label.pace{display:inline-flex;align-items:baseline;gap:2px;cursor:text}
 /* przytrzymanie − / + */
 .step{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .step.holding{background:color-mix(in srgb,var(--c) 28%,var(--surface-2))}
+/* porównanie planów */
+.cmp{border-top:1px solid rgba(255,255,255,.12);padding-top:16px;display:flex;flex-direction:column;gap:10px}
+.cmp .chd{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.cmp .ttl2{font-size:.78rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.65}
+.cmp p{margin:0;font-size:.85rem;opacity:.75}
+.cbtn{font:inherit;font-size:.82rem;font-weight:700;color:inherit;padding:7px 12px;border-radius:999px;border:1.5px solid rgba(255,255,255,.22);background:transparent;cursor:pointer}
+.cbtn:hover{background:rgba(255,255,255,.1)}
+.cbtn.solid{background:rgba(255,255,255,.14);border-color:transparent}
+.cbtns{display:flex;gap:6px;flex-wrap:wrap}
+.cbig{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.cbig b{font-family:var(--display);font-size:1.6rem;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.cbig span{font-size:.85rem;opacity:.75}
+.cgood{color:var(--good)} .cbad{color:var(--badh)}
+.cgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.cgrid div{background:rgba(255,255,255,.07);border-radius:10px;padding:6px 8px;display:flex;flex-direction:column;min-width:0}
+.cgrid small{font-size:.7rem;opacity:.65;font-weight:600}
+.cgrid b{font-family:var(--display);font-size:.9rem;font-weight:600;font-variant-numeric:tabular-nums}
 /* zakładki */
 .tri-ic{display:inline-flex;gap:3px}
 .tabbar button .tri-ic svg{width:17px;height:17px}
@@ -293,6 +310,7 @@ label.pace{display:inline-flex;align-items:baseline;gap:2px;cursor:text}
     <div>
       <div class="splits" id="splits"></div>
     </div>
+    <div class="cmp" id="cmpTri" aria-live="polite"></div>
     <div class="sharebox" hidden><p>Skopiuj ten link i wyślij go dalej:</p><input type="text" readonly aria-label="Link z ustawieniami"></div>
   </aside>
 
@@ -422,6 +440,7 @@ label.pace{display:inline-flex;align-items:baseline;gap:2px;cursor:text}
     <div>
       <div class="splits" id="rChecks"></div>
     </div>
+    <div class="cmp" id="cmpRun" aria-live="polite"></div>
     <div class="sharebox" hidden><p>Skopiuj ten link i wyślij go dalej:</p><input type="text" readonly aria-label="Link z ustawieniami"></div>
   </aside>
 
@@ -507,6 +526,45 @@ label.pace{display:inline-flex;align-items:baseline;gap:2px;cursor:text}
 </button>
 
 <script>
+var lastTri=null,lastRun=null;
+/* ---------- plan A: zapis i porównanie ---------- */
+function loadPlan(k){try{return JSON.parse(localStorage.getItem(k==="tri"?"tri-planA":"run-planA")||"null");}catch(e){return null;}}
+function savePlan(k){
+  const snap=k==="tri"?{state:JSON.parse(JSON.stringify(state)),parts:lastTri.parts,total:lastTri.total,name:PRESETS.find(x=>x.id===state.dist).name}
+                      :{rs:JSON.parse(JSON.stringify(rs)),total:lastRun.total,pace:lastRun.pace,name:RPRE.find(x=>x.id===rs.dist).name};
+  try{localStorage.setItem(k==="tri"?"tri-planA":"run-planA",JSON.stringify(snap));}catch(e){}
+  memPlan[k]=snap;renderCmp(k);
+}
+const memPlan={};
+function getPlan(k){return memPlan[k]!==undefined?memPlan[k]:(memPlan[k]=loadPlan(k));}
+function dropPlan(k){memPlan[k]=null;try{localStorage.removeItem(k==="tri"?"tri-planA":"run-planA");}catch(e){}renderCmp(k);}
+function dfx(d,fmt){const r=Math.round(d);if(!r)return `<span style="opacity:.55">0:00</span>`;return `<span class="${r<0?"cgood":"cbad"}">${r<0?"−":"+"}${fmt(Math.abs(r))}</span>`;}
+function renderCmp(k){
+  const box=$(k==="tri"?"cmpTri":"cmpRun");if(!box)return;
+  const plan=getPlan(k),cur=k==="tri"?lastTri:lastRun;if(!cur)return;
+  if(!plan){box.innerHTML=`<div class="chd"><span class="ttl2">Porównanie</span><button type="button" class="cbtn" data-c="save">Zapisz jako plan A</button></div><p>Zapisz obecne ustawienia, a potem zmieniaj tempa i patrz, ile zyskujesz albo tracisz.</p>`;}
+  else{
+    const sameDist=k==="tri"?(plan.state.swim===state.swim&&plan.state.bike===state.bike&&plan.state.run===state.run):Math.abs(plan.rs.km-rs.km)<0.001;
+    const d=cur.total-plan.total;
+    let body;
+    if(!sameDist)body=`<p>Plan A jest na innym dystansie (${plan.name}), więc nie porównuję czasu. Wybierz ten sam dystans albo wczytaj plan A.</p>`;
+    else{
+      const r=Math.round(d);
+      body=`<div class="cbig"><b class="${r<0?"cgood":r>0?"cbad":""}">${r?(r<0?"−":"+")+hms(Math.abs(r)):"0:00"}</b><span>${r<0?"szybciej niż plan A":r>0?"wolniej niż plan A":"tak samo jak plan A"} (${hms(plan.total)})</span></div>`;
+      if(k==="tri"){const P=plan.parts,C=cur.parts;
+        body+=`<div class="cgrid"><div><small>Pływanie</small><b>${dfx(C[0]-P[0],ms)}</b></div><div><small>Rower</small><b>${dfx(C[2]-P[2],hms)}</b></div><div><small>Bieg</small><b>${dfx(C[4]-P[4],hms)}</b></div><div><small>T1 + T2</small><b>${dfx(C[1]+C[3]-P[1]-P[3],ms)}</b></div></div>`;}
+      else body+=`<p>Tempo: plan A ${ms(plan.pace)} /km, teraz ${ms(cur.pace)} /km</p>`;
+    }
+    box.innerHTML=`<div class="chd"><span class="ttl2">Plan A · ${plan.name}</span><div class="cbtns"><button type="button" class="cbtn solid" data-c="load">Wczytaj A</button><button type="button" class="cbtn" data-c="save">Nadpisz</button><button type="button" class="cbtn" data-c="drop">Usuń</button></div></div>${body}`;
+  }
+  box.querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>{
+    const c=b.dataset.c;
+    if(c==="save")savePlan(k);
+    else if(c==="drop")dropPlan(k);
+    else if(c==="load"){const pl=getPlan(k);if(k==="tri"){Object.assign(state,pl.state);render();}else{Object.assign(rs,pl.rs);rRender();}}
+  });
+}
+
 const PRESETS=[
   {id:"ss",name:"Super Sprint",swim:400,bike:10,run:2.5},
   {id:"sp",name:"Sprint",swim:750,bike:20,run:5},
@@ -616,6 +674,7 @@ function render(fromDist){
   const tS=bad?bS:state.swim/100*pS, tB=bad?bB:state.bike/pB*3600, tR=bad?bR:state.run*pR;
   if(bad){pS=state.pSwim;pB=state.pBike;pR=state.pRun;}
   const parts=[tS,state.t1,tB,state.t2,tR], total=parts.reduce((a,b)=>a+b,0);
+  lastTri={parts,total};
 
   $("tSwim").innerHTML=hms(tS)+"<small>czas</small>";
   $("tBike").innerHTML=hms(tB)+"<small>czas</small>";
@@ -643,7 +702,7 @@ function render(fromDist){
   let acc=0;
   $("splits").innerHTML=`<div class="r hd"><i></i><span>Etap</span><span>Czas etapu</span><span>Na zegarze</span></div>`+parts.map((v,i)=>{acc+=v;return `<div class="r" style="--c:var(${names[i][1]})"><i class="dot"></i><span class="seg">${names[i][0]}</span><span class="t num">${hms(v)}</span><span class="clock num">${hms(acc)}</span></div>`;}).join("");
   try{localStorage.setItem("tri-calc",JSON.stringify(state));}catch(e){}
-  updateBar();
+  updateBar();renderCmp("tri");
 }
 render();
 
@@ -736,6 +795,7 @@ function rRender(fromKm,fromGoal){
   if(goalMode&&!fromGoal){const g=Math.round(rs.goal);$("gH").value=Math.floor(g/3600);$("gM").value=String(Math.floor(g%3600/60)).padStart(2,"0");$("gS").value=String(g%60).padStart(2,"0");}
 
   const pace=rs.pace,total=pace*rs.km;
+  lastRun={total,pace};
   setRange("rRange",Math.min(600,Math.max(150,Math.round(pace))));
   $("rTotal").textContent=hms(total);
   $("rName").textContent=RPRE.find(x=>x.id===rs.dist).name+(rs.dist==="own"?` · ${fkm(rs.km)} km`:"");
@@ -772,7 +832,7 @@ function rRender(fromKm,fromGoal){
   $("rKms").innerHTML=out.join("")||`<div class="alt">Wpisz dystans, aby zobaczyć międzyczasy.</div>`;
 
   try{localStorage.setItem("run-calc",JSON.stringify(rs));}catch(e){}
-  updateBar();
+  updateBar();renderCmp("run");
 }
 rRender();
 
