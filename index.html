@@ -527,6 +527,21 @@ label.pace{display:inline-flex;align-items:baseline;gap:2px;cursor:text}
 
 <script>
 var lastTri=null,lastRun=null;
+/* ---------- płynna zmiana cyfr ---------- */
+const reduceMotion=matchMedia("(prefers-reduced-motion: reduce)");
+function animateTime(el,to){
+  if(!el)return;
+  const from=el._v;el._v=to;cancelAnimationFrame(el._raf);
+  if(from===undefined||reduceMotion.matches||Math.abs(to-from)<1||document.hidden){el.textContent=hms(to);return;}
+  const t0=performance.now(),dur=320;
+  const step=now=>{const k=Math.min(1,(now-t0)/dur),e=1-Math.pow(1-k,3);
+    el.textContent=hms(from+(to-from)*e);if(k<1)el._raf=requestAnimationFrame(step);};
+  el._raf=requestAnimationFrame(step);
+}
+/* ---------- lekka wibracja na końcu suwaka ---------- */
+function buzz(ms){try{navigator.vibrate&&navigator.vibrate(ms);}catch(e){}}
+document.addEventListener("input",e=>{const r=e.target;if(!r||r.type!=="range")return;
+  const edge=+r.value<=+r.min||+r.value>=+r.max;if(edge&&!r._edge)buzz(12);r._edge=edge;});
 /* ---------- plan A: zapis i porównanie ---------- */
 function loadPlan(k){try{return JSON.parse(localStorage.getItem(k==="tri"?"tri-planA":"run-planA")||"null");}catch(e){return null;}}
 function savePlan(k){
@@ -694,7 +709,7 @@ function render(fromDist){
     $("aBike").textContent=`${ms(3600/pB)} min na km`;
     $("aRun").textContent=`${(3600/pR).toFixed(1).replace(".",",")} km/h`;
   }
-  $("total").textContent=hms(total);
+  animateTime($("total"),total);
   $("dname").textContent=PRESETS.find(x=>x.id===state.dist).name+(goalMode&&!bad?" · cel":"");
 
   const bars=$("bar").children;parts.forEach((v,i)=>bars[i].style.flexGrow=total?v/total:0);
@@ -710,7 +725,7 @@ render();
 function updateBar(){
   const run=!$("tabRun").hidden;
   $("rbName").textContent=(run?$("rName"):$("dname")).textContent;
-  $("rbTotal").textContent=(run?$("rTotal"):$("total")).textContent;
+  const cur=run?lastRun:lastTri;if(cur)animateTime($("rbTotal"),cur.total);
   $("rbBar").hidden=run;
   if(!run){const src=$("bar").children,dst=$("rbBar").children;for(let i=0;i<src.length;i++)dst[i].style.flexGrow=src[i].style.flexGrow;}
   $("rbPace").textContent=run?$("rPace").textContent+" /km":"";
@@ -797,7 +812,7 @@ function rRender(fromKm,fromGoal){
   const pace=rs.pace,total=pace*rs.km;
   lastRun={total,pace};
   setRange("rRange",Math.min(600,Math.max(150,Math.round(pace))));
-  $("rTotal").textContent=hms(total);
+  animateTime($("rTotal"),total);
   $("rName").textContent=RPRE.find(x=>x.id===rs.dist).name+(rs.dist==="own"?` · ${fkm(rs.km)} km`:"");
   $("rPace").textContent=ms(pace);
   $("rSpeed").textContent=(3600/pace).toFixed(1).replace(".",",");
@@ -901,7 +916,7 @@ document.querySelectorAll(".step").forEach(attachHold);
 
 document.querySelectorAll("[data-share]").forEach(b=>b.onclick=async()=>{
   const url=shareURL(),box=b.closest(".hero").querySelector(".sharebox"),label=b.querySelector("span");
-  const done=t=>{b.classList.add("ok");label.textContent=t;setTimeout(()=>{b.classList.remove("ok");label.textContent="Udostępnij";},2000);};
+  const done=t=>{buzz(15);b.classList.add("ok");label.textContent=t;setTimeout(()=>{b.classList.remove("ok");label.textContent="Udostępnij";},2000);};
   const fallback=()=>{box.hidden=false;const i=box.querySelector("input");i.value=url;i.focus();i.select();};
   if(navigator.share&&matchMedia("(pointer:coarse)").matches){
     try{await navigator.share({title:"Kalkulator triathlonowy",text:"Zobacz moje wyliczenia:",url});return;}
