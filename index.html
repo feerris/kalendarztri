@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Kalkulator czasów triathlonowych i biegowych">
+<style>*,*::before,*::after{box-sizing:border-box}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>Kalkulator Triathlonowy</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Manrope:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: panel wyniku (lewy, przyklejony) + kolumna ustawień (prawa); na telefonie wynik u góry, potem karty dyscyplin */
+:root{
+  --bg:#f3f5f8; --surface:#ffffff; --surface-2:#eef1f5; --fg:#0e1726; --muted:#66748a; --line:#e2e7ee;
+  --swim:#1f8fff; --bike:#ff8a1f; --run:#f0436a; --trans:#8b97a8;
+  --hero-a:#0e1726; --hero-b:#1b2a44; --hero-fg:#ffffff;
+  --display:"Sora","Segoe UI",system-ui,sans-serif;
+  --body:"Manrope",system-ui,-apple-system,sans-serif;
+  --r:20px; --shadow:0 1px 2px rgba(14,23,38,.04),0 8px 24px rgba(14,23,38,.06);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0a0f18; --surface:#131b28; --surface-2:#1a2433; --fg:#eef2f8; --muted:#8d9ab0; --line:#232f41;
+  --swim:#4aa8ff; --bike:#ffa04a; --run:#ff6688; --trans:#7b879a;
+  --hero-a:#16233a; --hero-b:#0f1828; --hero-fg:#ffffff;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0a0f18; --surface:#131b28; --surface-2:#1a2433; --fg:#eef2f8; --muted:#8d9ab0; --line:#232f41;
+  --swim:#4aa8ff; --bike:#ffa04a; --run:#ff6688; --trans:#7b879a;
+  --hero-a:#16233a; --hero-b:#0f1828; --hero-fg:#ffffff;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25); color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 56px;
+  -webkit-font-smoothing:antialiased}
+.app{max-width:1080px;margin:0 auto;display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:28px;align-items:start}
+@media (max-width:860px){.app{grid-template-columns:minmax(0,1fr);gap:20px}}
+.num{font-family:var(--display);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+
+/* panel wyniku */
+.hero{position:sticky;top:calc(env(safe-area-inset-top,0px) + 20px);background:linear-gradient(160deg,var(--hero-a),var(--hero-b));color:var(--hero-fg);
+  border-radius:28px;padding:28px;display:flex;flex-direction:column;gap:24px;box-shadow:var(--shadow);overflow:hidden;isolation:isolate}
+.hero::after{content:"";position:absolute;inset:auto -30% -40% auto;width:320px;height:320px;border-radius:50%;
+  background:radial-gradient(circle,color-mix(in srgb,var(--swim) 45%,transparent),transparent 70%);z-index:-1;opacity:.6}
+@media (max-width:860px){.hero{position:relative;top:auto}}
+.hero::after{pointer-events:none}
+html,body{overflow-x:clip;max-width:100%}
+html{touch-action:pan-y pinch-zoom}
+input[type=range]{touch-action:pan-x}
+.ttl label{flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:.95rem;opacity:.9}
+.brand i{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;background:rgba(255,255,255,.12)}
+.cap{font-size:.78rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;opacity:.65}
+.total{font-size:clamp(3rem,9vw,4.2rem);font-weight:700;line-height:1;margin-top:6px}
+.dname{display:inline-flex;margin-top:12px;padding:5px 12px;border-radius:999px;background:rgba(255,255,255,.12);font-size:.85rem;font-weight:600}
+.bar{display:flex;height:10px;border-radius:999px;overflow:hidden;gap:3px}
+.bar i{display:block;border-radius:999px;transition:flex-grow .3s ease;min-width:3px}
+.splits{display:flex;flex-direction:column;gap:2px}
+.splits .r{display:grid;grid-template-columns:auto 1fr auto auto;gap:12px;align-items:center;padding:9px 0;border-top:1px solid rgba(255,255,255,.08);font-size:.92rem}
+.splits .r:first-child{border-top:0}
+.splits .dot{width:10px;height:10px;border-radius:50%;background:var(--c)}
+.splits .seg{font-weight:600}
+.splits .clock{opacity:.55;font-size:.82rem}
+.splits .t{font-weight:600;min-width:5.5em;text-align:right}
+
+/* kolumna ustawień */
+.main{display:flex;flex-direction:column;gap:20px;min-width:0}
+h1{font-family:var(--display);font-size:clamp(1.7rem,4vw,2.2rem);font-weight:700;letter-spacing:-.03em;margin:0;line-height:1.1;text-wrap:balance}
+.sub{color:var(--muted);margin:6px 0 0}
+.sect{font-size:.8rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+
+.dist{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+@media (max-width:520px){.dist{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.dist button{font:inherit;color:var(--fg);background:var(--surface);border:1.5px solid var(--line);border-radius:14px;padding:12px 14px;cursor:pointer;text-align:left;
+  display:flex;flex-direction:column;gap:2px;transition:border-color .15s,background .15s,transform .15s}
+#dist button[data-id="own"]{grid-column:1/-1}
+.dist button:hover{border-color:color-mix(in srgb,var(--fg) 25%,var(--line))}
+.dist button b{font-family:var(--display);font-weight:600;font-size:1rem;letter-spacing:-.01em}
+.dist button small{color:var(--muted);font-size:.78rem;font-variant-numeric:tabular-nums}
+.dist button[aria-pressed="true"]{background:var(--fg);border-color:var(--fg);color:var(--bg)}
+.dist button[aria-pressed="true"] small{color:inherit;opacity:.7}
+
+.card{background:var(--surface);border-radius:var(--r);padding:20px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:16px}
+.head{display:flex;align-items:center;gap:14px}
+.ico{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;flex:none;color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent)}
+.ico svg{width:24px;height:24px}
+.ttl{flex:1;min-width:0}
+.ttl h2{margin:0;font-family:var(--display);font-size:1.15rem;font-weight:600;letter-spacing:-.01em}
+.ttl label{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:.88rem;margin-top:2px}
+.ttl input{width:5.5em;font:inherit;font-weight:600;color:var(--fg);background:var(--surface-2);border:1px solid transparent;border-radius:8px;padding:2px 8px;text-align:right}
+.ttl input:hover{border-color:var(--line)}
+.big{font-size:1.75rem;font-weight:700;text-align:right;line-height:1;color:var(--fg)}
+.big small{display:block;font-family:var(--body);font-size:.72rem;font-weight:600;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-top:6px}
+
+.ctrl{display:flex;align-items:center;gap:12px}
+.pacebox{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.pace{font-size:1.25rem;font-weight:600;color:var(--c)}
+.pace span{font-family:var(--body);font-size:.85rem;color:var(--muted);font-weight:500;margin-left:4px}
+.alt{font-size:.85rem;color:var(--muted)}
+.step{font:inherit;font-size:1.2rem;line-height:1;width:38px;height:38px;flex:none;border-radius:12px;border:0;background:var(--surface-2);color:var(--fg);cursor:pointer;transition:background .15s}
+.step:hover{background:color-mix(in srgb,var(--c) 18%,var(--surface-2))}
+.step:active{transform:scale(.95)}
+
+input[type=range]{-webkit-appearance:none;appearance:none;flex:1;min-width:0;height:28px;background:transparent;cursor:pointer;margin:0}
+input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:999px;background:linear-gradient(90deg,var(--c) var(--p,50%),var(--surface-2) var(--p,50%))}
+input[type=range]::-moz-range-track{height:8px;border-radius:999px;background:var(--surface-2)}
+input[type=range]::-moz-range-progress{height:8px;border-radius:999px;background:var(--c)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;border:3px solid var(--c);margin-top:-7px;box-shadow:0 2px 6px rgba(0,0,0,.2)}
+input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#fff;border:3px solid var(--c);box-shadow:0 2px 6px rgba(0,0,0,.2)}
+
+.trans{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:560px){.trans{grid-template-columns:minmax(0,1fr)}}
+.trans .card{gap:12px;padding:16px 18px}
+.trans .ico{width:38px;height:38px;border-radius:12px}
+.trans .ico svg{width:20px;height:20px}
+.trans .big{font-size:1.3rem}
+
+button:focus-visible,input:focus-visible{outline:2px solid var(--swim);outline-offset:2px}
+
+/* pola do wpisywania */
+.ttl input{font-size:16px}
+.ttl input[readonly]{background:transparent;border-color:transparent;padding:2px 0;width:auto;text-align:left;pointer-events:none;color:var(--fg)}
+.ttl input:not([readonly]){background:var(--surface);border:1.5px solid color-mix(in srgb,var(--c) 60%,transparent)}
+label.pace{display:inline-flex;align-items:baseline;gap:2px;cursor:text}
+.pin{font-family:var(--display);font-size:inherit;font-weight:600;color:inherit;width:4.4em;background:var(--surface-2);border:1.5px solid transparent;border-radius:10px;padding:4px 8px;text-align:center;font-variant-numeric:tabular-nums}
+.pin:hover{border-color:var(--line)}
+.pin:focus{outline:none;border-color:var(--c);background:var(--surface)}
+.pin.bad{border-color:var(--run)}
+.big.pin{width:4.2em;color:var(--fg)}
+.trans .big.pin{font-size:1.2rem}
+/* zakładki */
+.tri-ic{display:inline-flex;gap:3px}
+.tabbar button .tri-ic svg{width:17px;height:17px}
+.tabs{max-width:1080px;margin:0 auto 24px;display:flex}
+.tabbar{display:inline-flex;gap:4px;padding:4px;background:var(--surface);border-radius:16px;box-shadow:var(--shadow)}
+.tabbar button{font:inherit;font-weight:700;font-size:.95rem;display:inline-flex;align-items:center;gap:8px;border:0;background:transparent;color:var(--muted);padding:10px 18px;border-radius:12px;cursor:pointer;transition:background .15s,color .15s}
+.tabbar button svg{width:18px;height:18px}
+.tabbar button:hover{color:var(--fg)}
+.tabbar button[aria-selected="true"]{background:var(--fg);color:var(--bg)}
+@media (max-width:420px){.tabs{display:block}.tabbar{display:flex}.tabbar button{flex:1;justify-content:center}}
+
+/* zakładka bieg */
+.hero.runhero::after{background:radial-gradient(circle,color-mix(in srgb,var(--run) 45%,transparent),transparent 70%)}
+.pills{display:flex;flex-wrap:wrap;gap:8px}
+.pill{display:flex;flex-direction:column;padding:10px 14px;border-radius:14px;background:rgba(255,255,255,.08);min-width:0;flex:1}
+.pill b{font-size:1.25rem;font-weight:600}
+.pill small{font-size:.75rem;opacity:.65;font-weight:600}
+.mode{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;background:var(--surface-2);border-radius:14px}
+.mode button{font:inherit;font-weight:600;border:0;border-radius:10px;padding:10px;background:transparent;color:var(--muted);cursor:pointer}
+.mode button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:var(--shadow)}
+.goal{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.goal label{display:flex;flex-direction:column;gap:4px;font-size:.78rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.goal input{width:4.2em;font-family:var(--display);font-size:1.8rem;font-weight:700;text-align:center;color:var(--fg);background:var(--surface-2);border:1.5px solid transparent;border-radius:14px;padding:8px 4px;font-variant-numeric:tabular-nums}
+.goal input:focus{border-color:var(--run);outline:none}
+.goal .colon{font-family:var(--display);font-size:1.8rem;font-weight:700;color:var(--muted);align-self:flex-end;padding-bottom:10px}
+.kms{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px}
+.km{background:var(--surface-2);border-radius:12px;padding:8px 12px;display:flex;flex-direction:column}
+.km span{font-size:.75rem;font-weight:600;color:var(--muted)}
+.km b{font-size:1rem;font-weight:600}
+.km.half{outline:1.5px solid color-mix(in srgb,var(--run) 50%,transparent)}
+.note{font-size:.85rem;color:var(--muted);margin:0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-run" viewBox="0 0 24 24"><circle cx="15.5" cy="3.8" r="2"/><path d="M13.6 7.6L10.8 13.2"/><path d="M13.6 7.6L9.4 8.6 7.2 11.4"/><path d="M13.4 8.4l2.4 3.3 3.4-.4"/><path d="M10.8 13.2l3.6 2.6-1 5"/><path d="M10.8 13.2l-2.2 4-4.3.9"/></symbol>
+<symbol id="i-swim" viewBox="0 0 24 24"><circle cx="18" cy="7.5" r="2"/><path d="M3 12.5l5.5-4.5 4 2.5 2.5-1.5"/><path d="M2 16.5c1.7 1.3 3.3 1.3 5 0s3.3-1.3 5 0 3.3 1.3 5 0 3.3-1.3 5 0"/><path d="M2 20.5c1.7 1.3 3.3 1.3 5 0s3.3-1.3 5 0 3.3 1.3 5 0 3.3-1.3 5 0"/></symbol>
+<symbol id="i-bike" viewBox="0 0 24 24"><circle cx="5.5" cy="16.5" r="3.5"/><circle cx="18.5" cy="16.5" r="3.5"/><path d="M5.5 16.5L9 9h6l3.5 7.5M9 9l3 7.5h-6.5M15 9l-1.5-3H16"/></symbol>
+</defs></svg>
+<nav class="tabs">
+  <div class="tabbar" role="tablist">
+    <button role="tab" id="tab-tri" data-tab="triathlon" aria-controls="tabTri"><span class="tri-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-swim"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-bike"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-run"/></svg></span>Triathlon</button>
+    <button role="tab" id="tab-run" data-tab="bieg" aria-controls="tabRun"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-run"/></svg>Bieg</button>
+  </div>
+</nav>
+
+<div class="app" id="tabTri" role="tabpanel" aria-labelledby="tab-tri">
+  <aside class="hero" aria-live="polite">
+    <div class="brand"><i><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg></i>Przewidywany wynik</div>
+    <div>
+      <div class="cap">Czas na mecie</div>
+      <div class="total num" id="total">–</div>
+      <div class="dname" id="dname"></div>
+    </div>
+    <div class="bar" id="bar">
+      <i style="background:var(--swim)"></i><i style="background:var(--trans)"></i><i style="background:var(--bike)"></i><i style="background:var(--trans)"></i><i style="background:var(--run)"></i>
+    </div>
+    <div>
+      <div class="cap" style="margin-bottom:6px">Etap · zegar wyścigu · czas odcinka</div>
+      <div class="splits" id="splits"></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header>
+      <h1>Kalkulator triathlonowy</h1>
+      <p class="sub">Wybierz dystans i ustaw swoje tempo. Czasy przeliczają się od razu.</p>
+    </header>
+
+    <section>
+      <div class="sect">Dystans</div>
+      <div class="dist" id="dist"></div>
+    </section>
+
+    <section style="display:flex;flex-direction:column;gap:14px">
+      <div class="sect" style="margin:0">Tempo</div>
+
+      <article class="card" style="--c:var(--swim)">
+        <div class="head">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-swim"/></svg></div>
+          <div class="ttl"><h2>Pływanie</h2><label for="dSwim">Dystans <input id="dSwim" type="text" inputmode="numeric" autocomplete="off"> m</label></div>
+          <div class="big num" id="tSwim">–<small>czas</small></div>
+        </div>
+        <div class="pacebox"><label class="pace"><input class="pin num" id="vSwim" type="text" inputmode="decimal" autocomplete="off" aria-label="Tempo pływania, minuty:sekundy na 100 m"><span>/100 m</span></label><div class="alt">wpisz, np. 2:05</div></div>
+        <div class="ctrl">
+          <button class="step" data-t="swim" data-d="-1" aria-label="Szybciej">−</button>
+          <input type="range" id="pSwim" min="60" max="240" step="1" aria-label="Tempo pływania">
+          <button class="step" data-t="swim" data-d="1" aria-label="Wolniej">+</button>
+        </div>
+      </article>
+
+      <article class="card" style="--c:var(--bike)">
+        <div class="head">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-bike"/></svg></div>
+          <div class="ttl"><h2>Rower</h2><label for="dBike">Dystans <input id="dBike" type="text" inputmode="decimal" autocomplete="off"> km</label></div>
+          <div class="big num" id="tBike">–<small>czas</small></div>
+        </div>
+        <div class="pacebox"><label class="pace"><input class="pin num" id="vBike" type="text" inputmode="decimal" autocomplete="off" aria-label="Prędkość na rowerze w km/h"><span>km/h</span></label><div class="alt" id="aBike"></div></div>
+        <div class="ctrl">
+          <button class="step" data-t="bike" data-d="-1" aria-label="Wolniej">−</button>
+          <input type="range" id="pBike" min="15" max="50" step="0.1" aria-label="Prędkość na rowerze">
+          <button class="step" data-t="bike" data-d="1" aria-label="Szybciej">+</button>
+        </div>
+      </article>
+
+      <article class="card" style="--c:var(--run)">
+        <div class="head">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-run"/></svg></div>
+          <div class="ttl"><h2>Bieg</h2><label for="dRun">Dystans <input id="dRun" type="text" inputmode="decimal" autocomplete="off"> km</label></div>
+          <div class="big num" id="tRun">–<small>czas</small></div>
+        </div>
+        <div class="pacebox"><label class="pace"><input class="pin num" id="vRun" type="text" inputmode="decimal" autocomplete="off" aria-label="Tempo biegu, minuty:sekundy na km"><span>/km</span></label><div class="alt" id="aRun"></div></div>
+        <div class="ctrl">
+          <button class="step" data-t="run" data-d="-1" aria-label="Szybciej">−</button>
+          <input type="range" id="pRun" min="180" max="540" step="1" aria-label="Tempo biegu">
+          <button class="step" data-t="run" data-d="1" aria-label="Wolniej">+</button>
+        </div>
+      </article>
+
+      <div class="trans">
+        <article class="card" style="--c:var(--trans)">
+          <div class="head">
+            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-4-4M20 16H7l4 4"/></svg></div>
+            <div class="ttl"><h2>T1</h2><label>pływanie → rower</label></div>
+            <input class="big pin num" id="tT1" type="text" inputmode="decimal" autocomplete="off" aria-label="Czas T1, minuty:sekundy">
+          </div>
+          <div class="ctrl">
+            <button class="step" data-t="t1" data-d="-1" aria-label="Krócej">−</button>
+            <input type="range" id="pT1" min="0" max="600" step="5" aria-label="Czas T1">
+            <button class="step" data-t="t1" data-d="1" aria-label="Dłużej">+</button>
+          </div>
+        </article>
+        <article class="card" style="--c:var(--trans)">
+          <div class="head">
+            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-4-4M20 16H7l4 4"/></svg></div>
+            <div class="ttl"><h2>T2</h2><label>rower → bieg</label></div>
+            <input class="big pin num" id="tT2" type="text" inputmode="decimal" autocomplete="off" aria-label="Czas T2, minuty:sekundy">
+          </div>
+          <div class="ctrl">
+            <button class="step" data-t="t2" data-d="-1" aria-label="Krócej">−</button>
+            <input type="range" id="pT2" min="0" max="600" step="5" aria-label="Czas T2">
+            <button class="step" data-t="t2" data-d="1" aria-label="Dłużej">+</button>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <p class="note">Na start ustawione są przykładowe tempa średniego amatora. Tempo możesz wpisać z klawiatury albo ustawić suwakiem. Długości odcinków wpiszesz po wybraniu „Własny dystans”.</p>
+  </main>
+</div>
+
+<div class="app" id="tabRun" role="tabpanel" aria-labelledby="tab-run" hidden>
+  <aside class="hero runhero" aria-live="polite">
+    <div class="brand"><i><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg></i>Przewidywany wynik</div>
+    <div>
+      <div class="cap">Czas na mecie</div>
+      <div class="total num" id="rTotal">–</div>
+      <div class="dname" id="rName"></div>
+    </div>
+    <div class="pills">
+      <div class="pill"><b class="num" id="rPace">–</b><small>tempo /km</small></div>
+      <div class="pill"><b class="num" id="rSpeed">–</b><small>km/h</small></div>
+    </div>
+    <div>
+      <div class="cap" style="margin-bottom:6px">Punkty kontrolne · zegar wyścigu</div>
+      <div class="splits" id="rChecks"></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header>
+      <h1>Kalkulator biegowy</h1>
+      <p class="sub">Policz czas na mecie z tempa albo tempo potrzebne do wymarzonego wyniku.</p>
+    </header>
+
+    <section>
+      <div class="sect">Dystans</div>
+      <div class="dist" id="rDist"></div>
+    </section>
+
+    <section style="display:flex;flex-direction:column;gap:14px">
+      <div class="sect" style="margin:0">Co chcesz policzyć?</div>
+      <div class="mode">
+        <button type="button" id="mPace" aria-pressed="true">Znam tempo → czas</button>
+        <button type="button" id="mGoal" aria-pressed="false">Mam cel → tempo</button>
+      </div>
+
+      <article class="card" style="--c:var(--run)">
+        <div class="head">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-run"/></svg></div>
+          <div class="ttl"><h2>Bieg</h2><label for="rKm">Dystans <input id="rKm" type="text" inputmode="decimal" autocomplete="off"> km</label></div>
+          <div class="big num" id="rBig">–<small>czas</small></div>
+        </div>
+
+        <div id="paceBox" style="display:flex;flex-direction:column;gap:16px">
+          <div class="pacebox"><label class="pace"><input class="pin num" id="rPaceV" type="text" inputmode="decimal" autocomplete="off" aria-label="Tempo biegu, minuty:sekundy na km"><span>/km</span></label><div class="alt" id="rAlt"></div></div>
+          <div class="ctrl">
+            <button class="step" id="rMinus" aria-label="Szybciej">−</button>
+            <input type="range" id="rRange" min="150" max="600" step="1" aria-label="Tempo biegu">
+            <button class="step" id="rPlus" aria-label="Wolniej">+</button>
+          </div>
+        </div>
+
+        <div id="goalBox" hidden style="display:flex;flex-direction:column;gap:12px">
+          <div class="goal">
+            <label for="gH">godz.<input id="gH" type="number" min="0" max="23" inputmode="numeric"></label>
+            <span class="colon">:</span>
+            <label for="gM">min<input id="gM" type="number" min="0" max="59" inputmode="numeric"></label>
+            <span class="colon">:</span>
+            <label for="gS">sek<input id="gS" type="number" min="0" max="59" inputmode="numeric"></label>
+          </div>
+          <div class="alt">Wpisz docelowy czas, a obok pojawi się tempo, które musisz utrzymać.</div>
+        </div>
+      </article>
+
+      <article class="card" style="--c:var(--run)">
+        <div class="pacebox"><h2 style="margin:0;font-family:var(--display);font-size:1.15rem;font-weight:600">Międzyczasy co kilometr</h2><div class="alt">równe tempo na całym dystansie</div></div>
+        <div class="kms" id="rKms"></div>
+      </article>
+    </section>
+  </main>
+</div>
+
+<script>
+const PRESETS=[
+  {id:"ss",name:"Super Sprint",swim:400,bike:10,run:2.5},
+  {id:"sp",name:"Sprint",swim:750,bike:20,run:5},
+  {id:"ol",name:"Olimpijski",swim:1500,bike:40,run:10},
+  {id:"q",name:"1/4 Ironman",swim:950,bike:45,run:10.55},
+  {id:"half",name:"1/2 Ironman",swim:1900,bike:90,run:21.1},
+  {id:"im",name:"Ironman",swim:3800,bike:180,run:42.2},
+  {id:"own",name:"Własny dystans"}
+];
+const $=id=>document.getElementById(id);
+const state={dist:"ol",swim:1500,bike:40,run:10,pSwim:125,pBike:28,pRun:330,t1:150,t2:90};
+try{const s=JSON.parse(localStorage.getItem("tri-calc")||"null");if(s)Object.assign(state,s);}catch(e){}
+
+const hms=s=>{s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;
+  return (h?h+":"+String(m).padStart(2,"0"):m)+":"+String(x).padStart(2,"0");};
+const ms=s=>{s=Math.round(s);return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");};
+const km=v=>String(v).replace(".",",");
+
+const distEl=$("dist");
+PRESETS.forEach(p=>{const b=document.createElement("button");b.type="button";b.dataset.id=p.id;
+  b.innerHTML=`<b>${p.name}</b><small>${p.swim?`${km(p.swim/1000)} · ${km(p.bike)} · ${km(p.run)} km`:"wpisz własne odcinki"}</small>`;
+  b.onclick=()=>{state.dist=p.id;if(p.swim){state.swim=p.swim;state.bike=p.bike;state.run=p.run;}render();if(!p.swim){const el=$("dSwim");el.focus();el.select();}};
+  distEl.appendChild(b);});
+
+// wpisywanie z klawiatury
+function parseTime(str){
+  str=String(str).trim().replace(/[.,;\s]/g,":");if(!str)return NaN;
+  if(str.includes(":")){const [a,b="0"]=str.split(":");if(!/^\d+$/.test(a)||!/^\d{0,2}$/.test(b))return NaN;
+    const sec=b.length===1?+b*10:+(b||0);if(sec>59)return NaN;return +a*60+sec;}
+  if(!/^\d+$/.test(str))return NaN;
+  if(str.length>=3){const sec=+str.slice(-2);if(sec>59)return NaN;return +str.slice(0,-2)*60+sec;}
+  return +str*60;
+}
+const parseNum=str=>{const v=parseFloat(String(str).replace(",","."));return /^\s*\d+([.,]\d*)?\s*$/.test(String(str))?v:NaN;};
+function put(id,val){const el=$(id);if(document.activeElement!==el){el.value=val;el.classList.remove("bad");}}
+function typed(id,parse,min,max,apply,again){
+  const el=$(id);
+  el.addEventListener("input",()=>{const v=parse(el.value);const ok=!isNaN(v)&&v>=min&&v<=max;el.classList.toggle("bad",!ok&&el.value.trim()!=="");if(ok){apply(v);again();}});
+  el.addEventListener("blur",()=>{el.classList.remove("bad");again();});
+  el.addEventListener("keydown",e=>{if(e.key==="Enter")el.blur();});
+}
+const LIM={pSwim:[30,600],pBike:[5,80],pRun:[120,1200],t1:[0,1800],t2:[0,1800]};
+typed("vSwim",parseTime,...LIM.pSwim,v=>state.pSwim=v,()=>render());
+typed("vBike",parseNum,...LIM.pBike,v=>state.pBike=v,()=>render());
+typed("vRun",parseTime,...LIM.pRun,v=>state.pRun=v,()=>render());
+typed("tT1",parseTime,...LIM.t1,v=>state.t1=v,()=>render());
+typed("tT2",parseTime,...LIM.t2,v=>state.t2=v,()=>render());
+[["dSwim","swim",20000],["dBike","bike",1000],["dRun","run",300]].forEach(([id,k,mx])=>
+  typed(id,parseNum,0,mx,v=>{state[k]=v;},()=>render()));
+const dfmt=v=>String(Math.round(v*10000)/10000).replace(".",",");
+[["pSwim","pSwim"],["pBike","pBike"],["pRun","pRun"],["pT1","t1"],["pT2","t2"]].forEach(([id,k])=>{
+  $(id).addEventListener("input",e=>{state[k]=parseFloat(e.target.value);render();});});
+const STEP={swim:["pSwim",1],bike:["pBike",.1],run:["pRun",5],t1:["t1",5],t2:["t2",5]};
+document.querySelectorAll(".step").forEach(b=>b.onclick=()=>{const[k,s]=STEP[b.dataset.t];
+  state[k]=Math.min(LIM[k][1],Math.max(LIM[k][0],+(state[k]+s*+b.dataset.d).toFixed(2)));render();});
+
+function setRange(id,v){const el=$(id);el.value=v;const c=Math.min(+el.max,Math.max(+el.min,v));el.style.setProperty("--p",((c-el.min)/(el.max-el.min)*100)+"%");}
+
+function render(fromDist){
+  distEl.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.id===state.dist));
+  const own=state.dist==="own";
+  [["dSwim",state.swim],["dBike",state.bike],["dRun",state.run]].forEach(([id,v])=>{const el=$(id);el.readOnly=!own;el.tabIndex=own?0:-1;put(id,dfmt(v));el.style.width=own?"":(dfmt(v).length+.4)+"ch";});
+  setRange("pSwim",state.pSwim);setRange("pBike",state.pBike);setRange("pRun",state.pRun);setRange("pT1",state.t1);setRange("pT2",state.t2);
+
+  const tS=state.swim/100*state.pSwim, tB=state.bike/state.pBike*3600, tR=state.run*state.pRun;
+  const parts=[tS,state.t1,tB,state.t2,tR], total=parts.reduce((a,b)=>a+b,0);
+
+  $("tSwim").innerHTML=hms(tS)+"<small>czas</small>";
+  $("tBike").innerHTML=hms(tB)+"<small>czas</small>";
+  $("tRun").innerHTML=hms(tR)+"<small>czas</small>";
+  put("tT1",ms(state.t1));put("tT2",ms(state.t2));
+  put("vSwim",ms(state.pSwim));
+  put("vBike",state.pBike.toFixed(1).replace(".",","));
+  $("aBike").textContent=`${ms(3600/state.pBike)} min na km`;
+  put("vRun",ms(state.pRun));
+  $("aRun").textContent=`${(3600/state.pRun).toFixed(1).replace(".",",")} km/h`;
+  $("total").textContent=hms(total);
+  $("dname").textContent=PRESETS.find(x=>x.id===state.dist).name;
+
+  const bars=$("bar").children;parts.forEach((v,i)=>bars[i].style.flexGrow=total?v/total:0);
+  const names=[["Pływanie","--swim"],["T1","--trans"],["Rower","--bike"],["T2","--trans"],["Bieg","--run"]];
+  let acc=0;
+  $("splits").innerHTML=parts.map((v,i)=>{acc+=v;return `<div class="r" style="--c:var(${names[i][1]})"><i class="dot"></i><span class="seg">${names[i][0]}</span><span class="clock num">${hms(acc)}</span><span class="t num">${hms(v)}</span></div>`;}).join("");
+  try{localStorage.setItem("tri-calc",JSON.stringify(state));}catch(e){}
+}
+render();
+
+/* ---------- zakładki ---------- */
+function showTab(t){
+  const run=t==="bieg";
+  $("tabTri").hidden=run;$("tabRun").hidden=!run;
+  $("tab-tri").setAttribute("aria-selected",!run);$("tab-run").setAttribute("aria-selected",run);
+  try{localStorage.setItem("tri-tab",t);}catch(e){}
+}
+document.querySelectorAll(".tabbar button").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+let startTab=location.hash==="#bieg"?"bieg":location.hash==="#triathlon"?"triathlon":null;
+if(!startTab){try{startTab=localStorage.getItem("tri-tab");}catch(e){}}
+showTab(startTab||"triathlon");
+
+/* ---------- kalkulator biegowy ---------- */
+const RPRE=[
+  {id:"5",name:"5 km",km:5},{id:"10",name:"10 km",km:10},{id:"15",name:"15 km",km:15},
+  {id:"hm",name:"Półmaraton",km:21.0975},{id:"m",name:"Maraton",km:42.195},{id:"own",name:"Własny dystans"}
+];
+const rs={dist:"10",km:10,pace:330,mode:"pace",goal:3300};
+try{const s=JSON.parse(localStorage.getItem("run-calc")||"null");if(s)Object.assign(rs,s);}catch(e){}
+const fkm=v=>(Math.round(v*100)/100).toString().replace(".",",");
+
+const rDistEl=$("rDist");
+RPRE.forEach(p=>{const b=document.createElement("button");b.type="button";b.dataset.id=p.id;
+  b.innerHTML=`<b>${p.name}</b><small>${p.km?fkm(p.km)+" km":"wpisz sam"}</small>`;
+  b.onclick=()=>{rs.dist=p.id;if(p.km){rs.km=p.km;}rRender();if(!p.km){const el=$("rKm");el.focus();el.select();}};rDistEl.appendChild(b);});
+
+typed("rKm",parseNum,0,300,v=>{rs.km=v;},()=>rRender());
+typed("rPaceV",parseTime,...LIM.pRun,v=>{rs.pace=v;rs.goal=v*rs.km;},()=>rRender());
+$("rRange").addEventListener("input",e=>{rs.pace=+e.target.value;rs.goal=rs.pace*rs.km;rRender();});
+$("rMinus").onclick=()=>{rs.pace=Math.max(150,rs.pace-5);rs.goal=rs.pace*rs.km;rRender();};
+$("rPlus").onclick=()=>{rs.pace=Math.min(600,rs.pace+5);rs.goal=rs.pace*rs.km;rRender();};
+$("mPace").onclick=()=>{rs.mode="pace";rRender();};
+$("mGoal").onclick=()=>{rs.mode="goal";rs.goal=Math.round(rs.pace*rs.km);rRender();};
+["gH","gM","gS"].forEach(id=>$(id).addEventListener("input",()=>{
+  const h=+$("gH").value||0,m=+$("gM").value||0,s=+$("gS").value||0;
+  rs.goal=h*3600+m*60+s;rRender(false,true);}));
+
+function rRender(fromKm,fromGoal){
+  rDistEl.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.id===rs.dist));
+  {const el=$("rKm"),own=rs.dist==="own";el.readOnly=!own;el.tabIndex=own?0:-1;put("rKm",dfmt(rs.km));el.style.width=own?"":(dfmt(rs.km).length+.4)+"ch";}
+  const goalMode=rs.mode==="goal";
+  $("mPace").setAttribute("aria-pressed",!goalMode);$("mGoal").setAttribute("aria-pressed",goalMode);
+  $("paceBox").hidden=goalMode;$("goalBox").hidden=!goalMode;
+
+  if(goalMode){ if(rs.km>0&&rs.goal>0) rs.pace=rs.goal/rs.km; }
+  else rs.goal=rs.pace*rs.km;
+  if(goalMode&&!fromGoal){const g=Math.round(rs.goal);$("gH").value=Math.floor(g/3600);$("gM").value=String(Math.floor(g%3600/60)).padStart(2,"0");$("gS").value=String(g%60).padStart(2,"0");}
+
+  const pace=rs.pace,total=pace*rs.km;
+  setRange("rRange",Math.min(600,Math.max(150,Math.round(pace))));
+  $("rTotal").textContent=hms(total);
+  $("rName").textContent=RPRE.find(x=>x.id===rs.dist).name+(rs.dist==="own"?` · ${fkm(rs.km)} km`:"");
+  $("rPace").textContent=ms(pace);
+  $("rSpeed").textContent=(3600/pace).toFixed(1).replace(".",",");
+  $("rBig").innerHTML=(goalMode?ms(pace):hms(total))+`<small>${goalMode?"potrzebne tempo /km":"czas"}</small>`;
+  put("rPaceV",ms(pace));
+  $("rAlt").textContent=`${(3600/pace).toFixed(1).replace(".",",")} km/h`;
+
+  // punkty kontrolne
+  const cps=[5,10,21.0975,30,42.195].filter(k=>k<rs.km-0.05);
+  const names={5:"5 km",10:"10 km",21.0975:"Półmaraton",30:"30 km",42.195:"Maraton"};
+  $("rChecks").innerHTML=[...cps.map(k=>[names[k],k]),["Meta",rs.km]].map(([n,k])=>
+    `<div class="r" style="--c:var(--run);grid-template-columns:auto 1fr auto"><i class="dot"></i><span class="seg">${n}</span><span class="t num">${hms(k*pace)}</span></div>`).join("");
+
+  // międzyczasy co km (max 100)
+  const full=Math.min(100,Math.floor(rs.km+1e-9)),out=[];
+  const halfKm=Math.ceil(rs.km/2);
+  for(let i=1;i<=full;i++)out.push(`<div class="km"><span>km ${i}</span><b class="num">${hms(i*pace)}</b></div>`);
+  if(rs.km-full>0.01&&full<100)out.push(`<div class="km"><span>meta · ${fkm(rs.km)} km</span><b class="num">${hms(total)}</b></div>`);
+  $("rKms").innerHTML=out.join("")||`<div class="alt">Wpisz dystans, aby zobaczyć międzyczasy.</div>`;
+
+  try{localStorage.setItem("run-calc",JSON.stringify(rs));}catch(e){}
+}
+rRender();
+</script>
+
+</body>
+</html>
